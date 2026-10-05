@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>第4章 PWM出力：サーボとESC | マイコンで作る固定翼機の自動操縦</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-page="04" data-root="../">
+    <a class="skip-link" href="#main">本文へ移動</a>
+
+    <header class="site-header">
+        <button id="nav-toggle" class="nav-toggle" type="button" aria-controls="route-nav" aria-expanded="false">目次</button>
+        <a class="site-title" href="../index.html">マイコンで作る固定翼機の自動操縦</a>
+    </header>
+
+    <div class="layout">
+        <nav id="route-nav" class="route-nav" aria-label="講座の章"></nav>
+
+        <main id="main">
+            <article>
+                <p class="chapter-number">第4章</p>
+                <h1>PWM出力：サーボとESC</h1>
+                <p class="lead">フライトコントローラが計算した結果は、最後にサーボとESCへの信号になって初めて機体を動かします。この章では、その信号の形を理解し、ESP32で正確に出力するクラスを作ります。</p>
+
+                <h2 id="goals">この章の目的</h2>
+                <ul>
+                    <li>RC用PWM信号の周期とパルス幅を説明できる</li>
+                    <li>パルス幅とduty比を相互に計算できる</li>
+                    <li>ESP32のLEDCで、指定したパルス幅の信号を出せる</li>
+                    <li>サーボとESCをクラスとして実装し、危険な値を出さないようにできる</li>
+                </ul>
+
+                <h2 id="rc-pwm">RC用のPWM信号</h2>
+                <p>ラジコンのサーボやESCへの信号は、一定の周期でくり返すパルスです。情報を運んでいるのはパルスの<strong>幅</strong>で、一般的なサーボでは周期20ms（50Hz）、パルス幅はおよそ1000〜2000µs、中立が1500µsです。</p>
+
+                <figure class="diagram">
+                    <div class="diagram-scroll">
+                        <svg viewBox="0 0 640 200" role="img" aria-labelledby="pwm-wave-title">
+                            <title id="pwm-wave-title">RC用PWM信号。周期Tごとに、幅t_onのパルスがくり返される。</title>
+                            <defs>
+                                <marker id="arrow-dim" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                    <path d="M0 0 L10 5 L0 10 z" class="svg-arrowhead"></path>
+                                </marker>
+                            </defs>
+                            <line class="svg-axis" x1="70" y1="150" x2="630" y2="150"></line>
+                            <text class="svg-sub" x="60" y="64" text-anchor="end">HIGH</text>
+                            <text class="svg-sub" x="60" y="154" text-anchor="end">LOW</text>
+                            <path class="svg-signal" d="M70 150 H90 V60 H150 V150 H350 V60 H410 V150 H610 V60 H630"></path>
+
+                            <line class="svg-axis" x1="90" y1="30" x2="90" y2="185"></line>
+                            <line class="svg-axis" x1="150" y1="30" x2="150" y2="60"></line>
+                            <line class="svg-axis" x1="350" y1="60" x2="350" y2="185"></line>
+
+                            <path class="svg-wire" d="M90 40 H150" marker-start="url(#arrow-dim)" marker-end="url(#arrow-dim)"></path>
+                            <text class="svg-text" x="160" y="44" font-size="13">パルス幅 t_on（1000〜2000µs）</text>
+
+                            <path class="svg-wire" d="M90 175 H350" marker-start="url(#arrow-dim)" marker-end="url(#arrow-dim)"></path>
+                            <text class="svg-text" x="220" y="195" font-size="13" text-anchor="middle">周期 T（50Hzなら20ms）</text>
+                        </svg>
+                    </div>
+                    <figcaption>図4-1　RC用PWM信号。見やすくするためにパルス幅を誇張して描いている。</figcaption>
+                </figure>
+
+                <p>周期のうちHIGHになっている割合を<strong>duty比</strong>と呼びます。</p>
+                <math display="block">
+                    <mrow>
+                        <mi>D</mi>
+                        <mo>=</mo>
+                        <mfrac>
+                            <msub><mi>t</mi><mtext>on</mtext></msub>
+                            <mi>T</mi>
+                        </mfrac>
+                    </mrow>
+                </math>
+                <p>中立の1500µsなら、<math><mi>D</mi><mo>=</mo><mn>1500</mn><mo>/</mo><mn>20000</mn><mo>=</mo><mn>0.075</mn></math>、つまり7.5%です。1000〜2000µsの範囲はduty比でいえば5〜10%にあたり、周期全体のうち意味のある部分はわずか5%しかありません。このことは、あとで出力の分解能を考えるときに効いてきます。</p>
+
+                <h3 id="why-pulse-width">duty比ではなくパルス幅で考える</h3>
+                <p>サーボやESCが読み取っているのはパルス幅そのものです。周期を変えると、同じduty比でもパルス幅が変わってしまいます。たとえばduty比7.5%は、50Hzなら1500µsですが、100Hzなら750µsで、サーボの範囲外です。そのため、プログラムの中では<strong>パルス幅をµs単位で指定し、duty比への換算は出力の最後の段だけで行う</strong>ようにします。</p>
+                <p>なお、この講座で「サーボのPWM」「ESCのPWM」と言うときは、このパルス幅で情報を送る信号を指します。モータドライバでモータの電圧を変えるPWM（duty比そのものが意味を持つもの）とは、同じPWMという名前でも使い方が違います。</p>
+
+                <h2 id="servo-and-esc">サーボとESC</h2>
+                <p>信号の形は同じでも、サーボとESCではパルス幅の意味と扱い方が違います。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th></th><th>サーボ</th><th>ESC</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>パルス幅の意味</td><td>目標の角度</td><td>スロットル（モータ出力の目安）</td></tr>
+                            <tr><td>基準の値</td><td>中立（1500µs付近）</td><td>最小（モータ停止）</td></tr>
+                            <tr><td>起動時に出す値</td><td>中立</td><td>最小</td></tr>
+                            <tr><td>必要な調整</td><td>中立のずれ、両端の範囲、回転方向の反転</td><td>スロットル範囲の校正</td></tr>
+                            <tr><td>値を誤ったときの危険</td><td>舵面が機械的な端に当たり、サーボが焼ける</td><td>プロペラが回り出す</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>サーボの動く範囲は機種によって違い、500〜2500µsまで動くものもあります。機体に取り付けたあとは、舵面やリンケージが端に当たらない範囲だけを使うように、両端の値を機体ごとに決めます。</p>
+
+                <div class="callout">
+                    <p class="callout-title">補足：更新の速さ</p>
+                    <p>50Hzの信号では、サーボへの指令は20msに1回しか更新されません。制御ループをそれより速く回しても、サーボに届くのは直前に書き込んだ値だけです。デジタルサーボの多くはもっと短い周期の信号を受け付けますが、対応する周期は機種によって違い、対応していない周期を入れると動作が不安定になったり故障したりします。周期を上げるときは、必ずデータシートで確かめてください。</p>
+                </div>
+
+                <div class="callout">
+                    <p class="callout-title">補足：小型機のモータ駆動</p>
+                    <p>ESCの多くは、受信機やサーボに5Vを供給するBEC（電源回路）を内蔵しています。一方、ごく小型の室内機では、ブラシモータをトランジスタ（FET）で直接駆動することもあります。その場合のPWMはモータの電圧を決めるduty比そのもので、周波数も数kHz以上と、この章で扱う信号とは別物になります。</p>
+                </div>
+
+                <h2 id="ledc">ESP32のLEDCで信号を作る</h2>
+                <p>ESP32には、PWM信号をハードウェアで作るLEDCという機能があります。LEDCは、内部のカウンタが一定の速さで0から<math><msup><mn>2</mn><mi>n</mi></msup><mo>&#x2212;</mo><mn>1</mn></math>まで数えることをくり返し、カウンタの値が設定値より小さい間だけ出力をHIGHにします。<math><mi>n</mi></math>は分解能（ビット数）です。</p>
+                <p>カウンタが1周する時間が周期<math><mi>T</mi></math>なので、パルス幅<math><msub><mi>t</mi><mtext>on</mtext></msub></math>を出すための設定値（カウント値）と、1カウントあたりの時間は次のようになります。</p>
+                <math display="block">
+                    <mrow>
+                        <mtext>count</mtext>
+                        <mo>=</mo>
+                        <mi>round</mi><mo>&#x2061;</mo>
+                        <mrow>
+                            <mo>(</mo>
+                            <mfrac>
+                                <msub><mi>t</mi><mtext>on</mtext></msub>
+                                <mi>T</mi>
+                            </mfrac>
+                            <mo>&#x22C5;</mo>
+                            <msup><mn>2</mn><mi>n</mi></msup>
+                            <mo>)</mo>
+                        </mrow>
+                        <mo separator="true">,</mo>
+                        <mspace width="2em"></mspace>
+                        <mi>Δ</mi><mi>t</mi>
+                        <mo>=</mo>
+                        <mfrac>
+                            <mi>T</mi>
+                            <msup><mn>2</mn><mi>n</mi></msup>
+                        </mfrac>
+                    </mrow>
+                </math>
+                <p>50Hz、14ビットの場合を計算すると次の表になります。1カウントは約1.22µsで、1000〜2000µsの範囲を約820段階で出せます。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>パルス幅</th><th class="num">t_on / T</th><th class="num">カウント値</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>1000µs</td><td class="num">0.050</td><td class="num">819</td></tr>
+                            <tr><td>1500µs</td><td class="num">0.075</td><td class="num">1229</td></tr>
+                            <tr><td>2000µs</td><td class="num">0.100</td><td class="num">1638</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>分解能はいくらでも上げられるわけではありません。カウンタを数えるクロックの周波数を<math><msub><mi>f</mi><mtext>clk</mtext></msub></math>とすると、周波数と分解能は</p>
+                <math display="block">
+                    <mrow>
+                        <mi>f</mi>
+                        <mo>&#x22C5;</mo>
+                        <msup><mn>2</mn><mi>n</mi></msup>
+                        <mo>&#x2264;</mo>
+                        <msub><mi>f</mi><mtext>clk</mtext></msub>
+                    </mrow>
+                </math>
+                <p>を満たす必要があり、さらに<math><mi>n</mi></math>の上限はESP32の型番によって違います（たとえばESP32-S3では14ビットまで）。この講座では、どの型番でも使える14ビットを標準にします。</p>
+
+                <div class="callout">
+                    <p class="callout-title">補足：Arduino-ESP32のバージョンによる違い</p>
+                    <p>この章のコードは、Arduino-ESP32コア3.x系の書き方（ピン番号で指定する<code>ledcAttach()</code>と<code>ledcWrite()</code>）を使っています。2.x系では、先にチャンネルを<code>ledcSetup(チャンネル, 周波数, ビット数)</code>で設定し、<code>ledcAttachPin(ピン, チャンネル)</code>でピンに割り当て、<code>ledcWrite(チャンネル, 値)</code>で書き込みます。自分の環境のバージョンは、PlatformIOのプラットフォーム設定で確認してください。</p>
+                </div>
+
+                <h2 id="classes">クラスとして実装する</h2>
+                <p>出力まわりは、役割の違う3つのクラスに分けます。</p>
+                <ul>
+                    <li><code>PwmChannel</code>：LEDCを直接扱い、「何µsのパルスを出すか」だけを知っている</li>
+                    <li><code>ServoOutput</code>：−1〜+1の指令を、そのサーボの中立・両端・向きに合わせたパルス幅に変換する</li>
+                    <li><code>EscOutput</code>：0〜1のスロットル指令をパルス幅に変換し、アームしていない間は必ず停止の値を出す</li>
+                </ul>
+                <p>制御のコード（第11章以降のPID）は−1〜+1や0〜1の値だけを扱い、µsもLEDCも知らなくて済みます。サーボを交換したり、マイコンを変えたりしても、直すのはこれらのクラスの中だけです。</p>
+
+                <div class="callout callout--cpp">
+                    <p class="callout-title">C++講座との対応</p>
+                    <p>C++講座第14回の「1クラス1責務」と、第8回のカプセル化をそのまま使っています。中立や両端の値を<code>private</code>にし、外からは<code>setCommand()</code>を通してしか出力を変えられないようにすることで、範囲外の値が出ることを防いでいます。</p>
+                </div>
+
+                <h3 id="pwm-channel">PwmChannel</h3>
+                <figure class="code">
+                    <figcaption>include/PwmChannel.h</figcaption>
+<pre><code class="language-cpp">#pragma once
+
+#include &lt;Arduino.h&gt;
+
+class PwmChannel
+{
+public:
+    PwmChannel(uint8_t pin, uint32_t frequencyHz, uint8_t resolutionBits);
+
+    bool begin();
+    void writePulseUs(float pulseUs);
+
+private:
+    uint8_t pin;
+    uint32_t frequencyHz;
+    uint8_t resolutionBits;
+    float periodUs;
+    uint32_t maxCount;
+};
+</code></pre>
+                </figure>
+
+                <figure class="code">
+                    <figcaption>src/PwmChannel.cpp</figcaption>
+<pre><code class="language-cpp">#include "PwmChannel.h"
+
+#include &lt;cmath&gt;
+
+PwmChannel::PwmChannel(uint8_t pin, uint32_t frequencyHz, uint8_t resolutionBits)
+    : pin(pin),
+      frequencyHz(frequencyHz),
+      resolutionBits(resolutionBits),
+      periodUs(1000000.0f / frequencyHz),
+      maxCount((1UL &lt;&lt; resolutionBits) - 1)
+{
+}
+
+bool PwmChannel::begin()
+{
+    // Arduino-ESP32 コア3.x：ピンに周波数と分解能を設定する
+    return ledcAttach(pin, frequencyHz, resolutionBits);
+}
+
+void PwmChannel::writePulseUs(float pulseUs)
+{
+    // NaN（計算の失敗で生じる「数ではない値」）は、どんな比較も偽になる。
+    // 下の範囲チェックをすり抜けてしまうので、最初に弾いて前回の出力を保つ。
+    if (std::isnan(pulseUs))
+    {
+        return;
+    }
+
+    if (pulseUs &lt; 0.0f)
+    {
+        pulseUs = 0.0f;
+    }
+    if (pulseUs &gt; periodUs)
+    {
+        pulseUs = periodUs;
+    }
+
+    uint32_t count = static_cast&lt;uint32_t&gt;(pulseUs / periodUs * (maxCount + 1) + 0.5f);
+    if (count &gt; maxCount)
+    {
+        count = maxCount;
+    }
+
+    ledcWrite(pin, count);
+}
+</code></pre>
+                </figure>
+
+                <p><code>+ 0.5f</code>してから整数に変換しているのは、切り捨てではなく四捨五入にするためです。</p>
+
+                <div class="callout callout--cpp">
+                    <p class="callout-title">C++講座では扱わなかった書き方</p>
+                    <ul>
+                        <li><code>static_cast&lt;uint32_t&gt;(値)</code>は、値を<code>uint32_t</code>型に変換することを明示する書き方です。<code>(uint32_t)値</code>というCの書き方より意図がはっきりし、危険な変換をコンパイラが見つけやすくなります。</li>
+                        <li><code>1UL &lt;&lt; resolutionBits</code>は、1を左に<code>resolutionBits</code>ビットずらす計算で、<math><msup><mn>2</mn><mi>n</mi></msup></math>と同じ値になります。<code>UL</code>は「unsigned longの1」という意味です。</li>
+                        <li><code>std::isnan()</code>は<code>&lt;cmath&gt;</code>にある関数で、値がNaNかどうかを調べます。<code>std::</code>は第5回の名前空間です。</li>
+                    </ul>
+                </div>
+
+                <h3 id="servo-output">ServoOutput</h3>
+                <figure class="code">
+                    <figcaption>include/ServoOutput.h</figcaption>
+<pre><code class="language-cpp">#pragma once
+
+#include "PwmChannel.h"
+
+class ServoOutput
+{
+public:
+    ServoOutput(uint8_t pin, float minUs, float centerUs, float maxUs, bool reversed);
+
+    bool begin();
+
+    // command: -1.0（片側の端）〜 0.0（中立）〜 +1.0（反対側の端）
+    void setCommand(float command);
+
+private:
+    PwmChannel pwm;
+    float minUs;
+    float centerUs;
+    float maxUs;
+    bool reversed;
+};
+</code></pre>
+                </figure>
+
+                <figure class="code">
+                    <figcaption>src/ServoOutput.cpp</figcaption>
+<pre><code class="language-cpp">#include "ServoOutput.h"
+
+#include &lt;cmath&gt;
+
+ServoOutput::ServoOutput(uint8_t pin, float minUs, float centerUs, float maxUs, bool reversed)
+    : pwm(pin, 50, 14),  // 50Hz・14ビット
+      minUs(minUs),
+      centerUs(centerUs),
+      maxUs(maxUs),
+      reversed(reversed)
+{
+}
+
+bool ServoOutput::begin()
+{
+    if (!pwm.begin())
+    {
+        return false;
+    }
+
+    pwm.writePulseUs(centerUs);
+    return true;
+}
+
+void ServoOutput::setCommand(float command)
+{
+    if (std::isnan(command))
+    {
+        command = 0.0f;  // 異常な指令は中立として扱う
+    }
+
+    if (command &gt; 1.0f)
+    {
+        command = 1.0f;
+    }
+    if (command &lt; -1.0f)
+    {
+        command = -1.0f;
+    }
+
+    if (reversed)
+    {
+        command = -command;
+    }
+
+    // 中立から両端までの距離は左右で違ってよいので、正負で分けて換算する
+    float pulseUs;
+    if (command &gt;= 0.0f)
+    {
+        pulseUs = centerUs + command * (maxUs - centerUs);
+    }
+    else
+    {
+        pulseUs = centerUs + command * (centerUs - minUs);
+    }
+
+    pwm.writePulseUs(pulseUs);
+}
+</code></pre>
+                </figure>
+
+                <p><code>ServoOutput</code>は<code>PwmChannel</code>をメンバとして持っています。継承ではなく、このように別のクラスを部品として持つ形をコンポジションと呼びます。「ServoOutputはPwmChannelである」とは言えない（is-aの関係ではない）ので、継承は使いません。</p>
+
+                <h3 id="esc-output">EscOutput</h3>
+                <figure class="code">
+                    <figcaption>include/EscOutput.h</figcaption>
+<pre><code class="language-cpp">#pragma once
+
+#include "PwmChannel.h"
+
+class EscOutput
+{
+public:
+    EscOutput(uint8_t pin, float minUs, float maxUs);
+
+    bool begin();
+
+    void arm();
+    void disarm();
+    bool isArmed() const;
+
+    // throttle: 0.0（停止）〜 1.0（最大）。アームしていなければ無視して停止を出す
+    void setThrottle(float throttle);
+
+private:
+    PwmChannel pwm;
+    float minUs;
+    float maxUs;
+    bool armed;
+};
+</code></pre>
+                </figure>
+
+                <figure class="code">
+                    <figcaption>src/EscOutput.cpp</figcaption>
+<pre><code class="language-cpp">#include "EscOutput.h"
+
+#include &lt;cmath&gt;
+
+EscOutput::EscOutput(uint8_t pin, float minUs, float maxUs)
+    : pwm(pin, 50, 14),
+      minUs(minUs),
+      maxUs(maxUs),
+      armed(false)
+{
+}
+
+bool EscOutput::begin()
+{
+    if (!pwm.begin())
+    {
+        return false;
+    }
+
+    // 起動直後は必ず最小スロットルを出す
+    pwm.writePulseUs(minUs);
+    return true;
+}
+
+void EscOutput::arm()
+{
+    armed = true;
+}
+
+void EscOutput::disarm()
+{
+    armed = false;
+    pwm.writePulseUs(minUs);
+}
+
+bool EscOutput::isArmed() const
+{
+    return armed;
+}
+
+void EscOutput::setThrottle(float throttle)
+{
+    if (!armed || std::isnan(throttle))
+    {
+        pwm.writePulseUs(minUs);
+        return;
+    }
+
+    if (throttle &lt; 0.0f)
+    {
+        throttle = 0.0f;
+    }
+    if (throttle &gt; 1.0f)
+    {
+        throttle = 1.0f;
+    }
+
+    pwm.writePulseUs(minUs + throttle * (maxUs - minUs));
+}
+</code></pre>
+                </figure>
+
+                <p>サーボでは異常な指令を中立として扱いましたが、ESCでは停止として扱います。異常が起きたときにどちらへ倒すのが安全かは、出力先によって違います。</p>
+
+                <h3 id="main-cpp">動かしてみる</h3>
+                <p>サーボをゆっくり往復させるだけの確認用プログラムです。ESCは初期化して停止の値を出すだけで、アームはしません。</p>
+                <figure class="code">
+                    <figcaption>src/main.cpp</figcaption>
+<pre><code class="language-cpp">#include &lt;Arduino.h&gt;
+
+#include "EscOutput.h"
+#include "ServoOutput.h"
+
+// ピン番号は使うボードに合わせて変更する
+const uint8_t AILERON_PIN = 25;
+const uint8_t ESC_PIN = 26;
+
+ServoOutput aileron(AILERON_PIN, 1000.0f, 1500.0f, 2000.0f, false);
+EscOutput esc(ESC_PIN, 1000.0f, 2000.0f);
+
+void setup()
+{
+    Serial.begin(115200);
+
+    if (!aileron.begin() || !esc.begin())
+    {
+        Serial.println("PWMの初期化に失敗しました");
+    }
+}
+
+void loop()
+{
+    float t = millis() / 1000.0f;
+    aileron.setCommand(sinf(t));  // -1 〜 +1 をゆっくり往復
+
+    delay(20);
+}
+</code></pre>
+                </figure>
+
+                <div class="callout">
+                    <p class="callout-title">補足：ピンの選び方</p>
+                    <p>ESP32のピンの中には、起動時の動作モードを決める「ストラッピングピン」や、内蔵フラッシュに使われていて使えないピンがあり、どれが該当するかは型番によって違います。PWM出力に使うピンは、使用する型番のデータシートで確かめてから決めてください。</p>
+                </div>
+
+                <h2 id="mixer">ミキサ：制御の出力を舵へ割り振る</h2>
+                <p>普通の尾翼を持つ機体なら、ロール・ピッチ・ヨーの制御出力をそれぞれエルロン・エレベータ・ラダーへそのまま渡せば済みます。しかし、主翼の後縁の舵だけでロールとピッチの両方を操作するエレボン機（全翼機など）では、1つの舵に2つの制御出力を混ぜる必要があります。左右のエレボンの指令を<math><msub><mi>δ</mi><mtext>L</mtext></msub></math>、<math><msub><mi>δ</mi><mtext>R</mtext></msub></math>、ピッチとロールの制御出力を<math><mi>e</mi></math>、<math><mi>a</mi></math>とすると、基本形は次のとおりです。</p>
+                <math display="block">
+                    <mrow>
+                        <msub><mi>δ</mi><mtext>L</mtext></msub><mo>=</mo><mi>e</mi><mo>+</mo><mi>a</mi>
+                        <mo separator="true">,</mo>
+                        <mspace width="2em"></mspace>
+                        <msub><mi>δ</mi><mtext>R</mtext></msub><mo>=</mo><mi>e</mi><mo>&#x2212;</mo><mi>a</mi>
+                    </mrow>
+                </math>
+                <p>符号はサーボの取り付け向きによって変わるので、<code>ServoOutput</code>の<code>reversed</code>で合わせます。また、<math><mi>e</mi></math>と<math><mi>a</mi></math>がどちらも大きいと合計が±1を超えるので、どちらを優先して残すかを決めておく必要があります。この扱いは、制御ループと合わせて第12章で詳しく扱います。</p>
+
+                <h2 id="esc-safety">ESCを安全に扱う</h2>
+                <p>多くのESCは、電源を入れた直後に最小スロットルの信号をしばらく受け取らないと、モータを回せる状態（アーム状態）になりません。電源を入れたときにスロットルが上がっていて、いきなりプロペラが回るのを防ぐための仕組みです。<code>EscOutput::begin()</code>で最初に最小値を出しているのはこのためです。</p>
+                <p>また、ESCは「どのパルス幅を停止、どのパルス幅を最大とするか」を覚えさせる校正が必要なことがあります。手順はESCによって違いますが、最大の信号を出したまま電源を入れ、合図の音が鳴ったら最小の信号に下げる、という形が多いです。必ず自分のESCの説明書に従ってください。</p>
+
+                <div class="callout callout--caution">
+                    <p class="callout-title">安全</p>
+                    <p>ESCの校正や、ESCにつないだ状態でのプログラムの書き込み・動作確認は、必ずプロペラを外して行います。校正では意図的に最大スロットルの信号を出すので、手順を間違えるとモータが全開で回ります。</p>
+                </div>
+
+                <div class="callout callout--rule">
+                    <p class="callout-title">大会ルール：フェイルセーフとの関係</p>
+                    <p>ルールでは、電波が切れたら<em>受信機側で</em>スロットルを切ることが求められています。受信機のスロットル出力をESCに直接つなぐなら、受信機のフェイルセーフ設定だけで済みます。しかし、フライトコントローラがESCを駆動する構成では、受信機が「スロットル最小」を出しても、フライトコントローラがそれを読んで<code>EscOutput</code>に反映しなければモータは止まりません。受信機のフェイルセーフを確実にESCまで届ける方法は、第5章と第14章で扱います。</p>
+                </div>
+
+                <h2 id="verify">実機で確かめる</h2>
+                <ol>
+                    <li>ロジックアナライザかオシロスコープで出力ピンを測り、周期が20ms、パルス幅が指令どおり（中立なら1500µs）になっているかを確かめます。</li>
+                    <li>サーボはホーン（腕）を外した状態で中立の位置を確かめてから取り付けます。</li>
+                    <li>舵面につないだら、指令を少しずつ±1に近づけ、舵面やリンケージが端に当たらない範囲で<code>minUs</code>と<code>maxUs</code>を決めます。</li>
+                    <li>プロペラを外した状態で、ESCがアームし、スロットルに応じて回転が変わることを確かめます。</li>
+                </ol>
+
+                <h2 id="exercises">演習</h2>
+                <ol>
+                    <li>50Hz・14ビットのとき、1100µsと1900µsのカウント値を求めよ。</li>
+                    <li>333Hz・14ビットのとき、1500µsのカウント値と、1カウントあたりの時間を求めよ。</li>
+                    <li><code>ServoOutput</code>に、中立のずれを補正する<code>setTrim(float trimUs)</code>を追加せよ。トリムを加えた結果が<code>minUs</code>〜<code>maxUs</code>を超えないようにすること。</li>
+                    <li><code>ServoOutput</code>のコンストラクタで固定している「50Hz・14ビット」を、引数で指定できるように変更せよ。周波数と分解能が<math><mi>f</mi><mo>&#x22C5;</mo><msup><mn>2</mn><mi>n</mi></msup><mo>&#x2264;</mo><msub><mi>f</mi><mtext>clk</mtext></msub></math>を満たさない場合はどうするのがよいか、考えて実装せよ。</li>
+                    <li>制御ループを500Hzで回し、サーボへの信号が50Hzの場合、制御ループの1回ごとに<code>setCommand()</code>を呼ぶと何が起きるか。サーボに実際に届く指令はどれか、説明せよ。</li>
+                </ol>
+
+                <details class="answer">
+                    <summary>演習1・2の答え</summary>
+                    <p>1．1100µsは<math><mn>1100</mn><mo>/</mo><mn>20000</mn><mo>&#x22C5;</mo><mn>16384</mn><mo>=</mo><mn>901.12</mn></math>なので901、1900µsは<math><mn>1556.48</mn></math>なので1556。</p>
+                    <p>2．周期は<math><mn>1</mn><mo>/</mo><mn>333</mn></math>秒＝約3003µs。カウント値は<math><mn>1500</mn><mo>/</mo><mn>3003</mn><mo>&#x22C5;</mo><mn>16384</mn><mo>&#x2248;</mo><mn>8183.8</mn></math>なので8184、1カウントあたりは<math><mn>3003</mn><mo>/</mo><mn>16384</mn><mo>&#x2248;</mo><mn>0.18</mn></math>µs。周期が短くなった分、同じ14ビットでも細かく出力できる。</p>
+                </details>
+            </article>
+
+            <nav id="pager" class="pager" aria-label="前後の章"></nav>
+        </main>
+
+        <aside class="page-toc">
+            <nav id="page-toc" aria-label="このページの見出し"></nav>
+        </aside>
+    </div>
+
+    <script type="module" src="../assets/js/main.js"></script>
+</body>
+</html>

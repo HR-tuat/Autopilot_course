@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>第0章 講座の全体像 | マイコンで作る固定翼機の自動操縦</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-page="00" data-root="../">
+    <a class="skip-link" href="#main">本文へ移動</a>
+
+    <header class="site-header">
+        <button id="nav-toggle" class="nav-toggle" type="button" aria-controls="route-nav" aria-expanded="false">目次</button>
+        <a class="site-title" href="../index.html">マイコンで作る固定翼機の自動操縦</a>
+    </header>
+
+    <div class="layout">
+        <nav id="route-nav" class="route-nav" aria-label="講座の章"></nav>
+
+        <main id="main">
+            <article>
+                <p class="chapter-number">第0章</p>
+                <h1>講座の全体像</h1>
+                <p class="lead">この講座では、C++講座で作ったLEDクラスやSensorクラスの考え方をそのまま使い、固定翼機を自動で旋回させるフライトコントローラを自作します。この章では、完成したときのシステムの形と、各章がその中のどこを作るのかを先に見ておきます。</p>
+
+                <h2 id="goal">この講座のゴール</h2>
+                <p>最終的な目標は、全日本学生室内飛行ロボットコンテスト統合部門の自動系サブミッション（自動水平旋回・自動8の字飛行・自動上昇旋回）を、自作のフライトコントローラで達成することです。そのために、次のことができるようになるのを目指します。</p>
+                <ul>
+                    <li>サーボとESCに正しい信号を出し、受信機からの信号を読む</li>
+                    <li>I2C・SPI・UARTでセンサから値を読み、較正してフィルタを通す</li>
+                    <li>ジャイロ・加速度・気圧・距離の値から、姿勢と高度を推定する</li>
+                    <li>カスケードPIDで姿勢を制御し、その上に旋回と高度の指令を作る</li>
+                    <li>手動飛行中に自動へ切り替え、いつでも安全に手動へ戻せるようにする</li>
+                    <li>飛行ログを読み、ゲインや設定値を根拠をもって調整する</li>
+                </ul>
+                <p>要求の細かい根拠は<a href="../rules.html">大会ルールと要求仕様</a>にまとめています。ルールは毎年改訂されるので、ルールに依存する内容はそのページに集めてあります。</p>
+
+                <h2 id="prerequisites">前提とする知識</h2>
+                <ul>
+                    <li>C++講座の内容：クラス、<code>.h</code>と<code>.cpp</code>の分割、カプセル化、継承と<code>virtual</code>、<code>enum class</code></li>
+                    <li>大学初年次の線形代数（行列の積・転置・逆行列）と微積分</li>
+                </ul>
+                <p>確率・統計（正規分布、分散、共分散）は、カルマンフィルタを扱う第10章で必要な分だけ説明します。</p>
+
+                <h2 id="system">自動操縦システムの全体像</h2>
+                <p>完成したフライトコントローラの中では、次の図のように信号が流れます。図の右上から右下、左下へと「機体が動く → センサが測る → 状態を推定する」の流れがあり、推定した値が上の段の制御へ戻ってきます。</p>
+
+                <figure class="diagram">
+                    <div class="diagram-scroll">
+                        <svg viewBox="0 0 790 320" role="img" aria-labelledby="fc-diagram-title">
+                            <title id="fc-diagram-title">フライトコントローラの信号の流れ。誘導、姿勢制御、角速度制御、ミキサとPWMを経て機体が動き、センサと状態推定の結果が各制御へ戻る。</title>
+                            <defs>
+                                <marker id="arrow-fc" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                                    <path d="M0 0 L10 5 L0 10 z" class="svg-arrowhead"></path>
+                                </marker>
+                            </defs>
+
+                            <!-- 手動操縦の経路 -->
+                            <path class="svg-wire svg-wire--manual" d="M70 40 V20 H705 V40" marker-end="url(#arrow-fc)"></path>
+                            <text class="svg-sub" x="388" y="13" text-anchor="middle">手動操縦中は、スティックの入力をそのままミキサへ</text>
+
+                            <!-- 上の段：指令の流れ -->
+                            <rect class="svg-box svg-box--io" x="10" y="40" width="120" height="56" rx="4"></rect>
+                            <text class="svg-text svg-title" x="70" y="64" text-anchor="middle">RC受信機</text>
+                            <text class="svg-sub" x="70" y="82" text-anchor="middle">モード管理・発光</text>
+
+                            <rect class="svg-box svg-box--ctrl" x="160" y="40" width="130" height="56" rx="4"></rect>
+                            <text class="svg-text svg-title" x="225" y="64" text-anchor="middle">誘導</text>
+                            <text class="svg-sub" x="225" y="82" text-anchor="middle">旋回・高度の指令</text>
+
+                            <rect class="svg-box svg-box--ctrl" x="320" y="40" width="130" height="56" rx="4"></rect>
+                            <text class="svg-text svg-title" x="385" y="64" text-anchor="middle">姿勢制御</text>
+                            <text class="svg-sub" x="385" y="82" text-anchor="middle">角度ループ（外側）</text>
+
+                            <rect class="svg-box svg-box--ctrl" x="480" y="40" width="130" height="56" rx="4"></rect>
+                            <text class="svg-text svg-title" x="545" y="64" text-anchor="middle">角速度制御</text>
+                            <text class="svg-sub" x="545" y="82" text-anchor="middle">角速度ループ（内側）</text>
+
+                            <rect class="svg-box svg-box--io" x="640" y="40" width="130" height="56" rx="4"></rect>
+                            <text class="svg-text svg-title" x="705" y="64" text-anchor="middle">ミキサ・PWM</text>
+                            <text class="svg-sub" x="705" y="82" text-anchor="middle">サーボ・ESC</text>
+
+                            <path class="svg-wire" d="M130 68 H160" marker-end="url(#arrow-fc)"></path>
+                            <text class="svg-sub" x="145" y="60" text-anchor="middle">開始</text>
+                            <path class="svg-wire" d="M290 68 H320" marker-end="url(#arrow-fc)"></path>
+                            <path class="svg-wire" d="M450 68 H480" marker-end="url(#arrow-fc)"></path>
+                            <path class="svg-wire" d="M610 68 H640" marker-end="url(#arrow-fc)"></path>
+
+                            <!-- 機体 -->
+                            <rect class="svg-box svg-box--plant" x="640" y="150" width="130" height="56" rx="4"></rect>
+                            <text class="svg-text svg-title" x="705" y="174" text-anchor="middle">機体</text>
+                            <text class="svg-sub" x="705" y="192" text-anchor="middle">舵面・プロペラ</text>
+                            <path class="svg-wire" d="M705 96 V150" marker-end="url(#arrow-fc)"></path>
+                            <text class="svg-sub" x="712" y="127">舵角・推力</text>
+
+                            <!-- 下の段：計測と推定 -->
+                            <rect class="svg-box svg-box--est" x="480" y="250" width="130" height="56" rx="4"></rect>
+                            <text class="svg-text svg-title" x="545" y="274" text-anchor="middle">センサ</text>
+                            <text class="svg-sub" x="545" y="292" text-anchor="middle">IMU・気圧・ToF</text>
+
+                            <rect class="svg-box svg-box--est" x="320" y="250" width="130" height="56" rx="4"></rect>
+                            <text class="svg-text svg-title" x="385" y="274" text-anchor="middle">状態推定</text>
+                            <text class="svg-sub" x="385" y="292" text-anchor="middle">姿勢・高度・方位</text>
+
+                            <path class="svg-wire" d="M705 206 V278 H610" marker-end="url(#arrow-fc)"></path>
+                            <text class="svg-sub" x="657" y="270" text-anchor="middle">運動</text>
+                            <path class="svg-wire" d="M480 278 H450" marker-end="url(#arrow-fc)"></path>
+
+                            <!-- 戻りの経路 -->
+                            <path class="svg-wire" d="M320 278 H225 V96" marker-end="url(#arrow-fc)"></path>
+                            <text class="svg-sub" x="231" y="190">姿勢・高度・方位</text>
+                            <path class="svg-wire" d="M385 250 V96" marker-end="url(#arrow-fc)"></path>
+                            <text class="svg-sub" x="391" y="190">姿勢</text>
+                            <path class="svg-wire" d="M545 250 V96" marker-end="url(#arrow-fc)"></path>
+                            <text class="svg-sub" x="539" y="215" text-anchor="end">角速度（ジャイロ）</text>
+                        </svg>
+                    </div>
+                    <figcaption>図0-1　フライトコントローラの信号の流れ。青枠が制御、緑枠が計測と推定、灰枠が入出力。</figcaption>
+                </figure>
+
+                <p>上の段の制御は、内側から順に作ります。いちばん内側の<strong>角速度制御</strong>はジャイロの値を直接使い、機体の回転の速さを指令どおりにします。その外側の<strong>姿勢制御</strong>は、推定した姿勢（バンク角やピッチ角）を指令どおりにするために、角速度の指令を作ります。さらに外側の<strong>誘導</strong>は「右に旋回しながら高度2mを保つ」といった目標から、姿勢の指令を作ります。このように制御を何段も重ねる構成がカスケード制御です。</p>
+
+                <h3 id="map">各ブロックと章の対応</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>ブロック</th><th>作る内容</th><th>章</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>機体</td><td>舵面の働き、旋回と上昇の力学</td><td>1</td></tr>
+                            <tr><td>ミキサ・PWM</td><td>サーボとESCへの信号</td><td>4</td></tr>
+                            <tr><td>RC受信機・モード管理</td><td>受信機入力、手動と自動の切替、発光表示</td><td>5, 14</td></tr>
+                            <tr><td>センサ</td><td>通信、較正、フィルタ</td><td>6, 7, 8</td></tr>
+                            <tr><td>状態推定</td><td>姿勢の表し方と推定、高度の推定</td><td>2, 9, 10</td></tr>
+                            <tr><td>角速度制御・姿勢制御</td><td>PIDとカスケードPID</td><td>11, 12</td></tr>
+                            <tr><td>誘導</td><td>水平旋回・8の字・上昇旋回の指令</td><td>13</td></tr>
+                            <tr><td>全体</td><td>実行周期の設計、ログと調整</td><td>3, 15</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2 id="manual-and-auto">手動飛行の中に自動飛行がある</h2>
+                <p>統合部門では、離陸・物資の投下・着陸は操縦者が行い、自動系サブミッションの間だけ機体が自律飛行（ハンズオフ飛行）をします。つまり、このフライトコントローラは「手動で飛んでいる最中に自動を開始し、終わったら、あるいは危なくなったら、すぐに手動へ戻す」ことが前提になります。</p>
+                <p>この切り替えは見た目以上に難しい部分です。自動を開始した瞬間に舵がはね上がらないこと、操縦者がスティックに触れたら即座に手動へ戻ること、電波が切れたら確実にモータを止めることを、第5章と第14章で扱います。</p>
+
+                <div class="callout callout--cpp">
+                    <p class="callout-title">C++講座との対応</p>
+                    <p>「手動」「自動旋回中」「上昇中」といった飛行の状態は、C++講座第9回の<code>enum class</code>と<code>switch</code>でそのまま書けます。モード管理は、講座の最終課題の<code>RobotState</code>を発展させたものだと考えてください。</p>
+                </div>
+
+                <h2 id="environment">開発環境</h2>
+                <p>開発環境はC++講座と同じものを使います。</p>
+                <ul>
+                    <li>Visual Studio Code と PlatformIO</li>
+                    <li>Arduinoフレームワーク（<code>setup()</code>と<code>loop()</code>）</li>
+                    <li>ESP32</li>
+                    <li>Git と GitHub</li>
+                </ul>
+                <p>センサは、講座の例として次のような一般的な部品を想定します。実際に使う部品が決まったら、そちらに合わせて読み替えてください。</p>
+                <ul>
+                    <li>IMU（ジャイロと加速度）：MPU-6050、ICM-42688-P など</li>
+                    <li>気圧センサ：BMP280、DPS310 など</li>
+                    <li>距離センサ（下向き）：VL53L1X などのToFセンサ</li>
+                </ul>
+                <p>また、ロジックアナライザかオシロスコープが1台あると、第4〜6章で信号を目で確かめられるので、理解がずっと速くなります。</p>
+
+                <h2 id="chapter-structure">各章の進め方</h2>
+                <p>各章は、目的 → 理論 → 実装 → 実機での確認 → 演習、の順で進みます。本文中の囲みは次の意味で使い分けています。</p>
+
+                <div class="callout callout--caution">
+                    <p class="callout-title">安全</p>
+                    <p>けがや機材の破損につながる注意です。読み飛ばさないでください。</p>
+                </div>
+                <div class="callout callout--rule">
+                    <p class="callout-title">大会ルール</p>
+                    <p>大会ルールとの関係です。ルールが改訂されたら見直す必要があります。</p>
+                </div>
+                <div class="callout callout--cpp">
+                    <p class="callout-title">C++講座との対応</p>
+                    <p>C++講座のどの内容を使っているか、または講座では扱わなかった新しい書き方です。</p>
+                </div>
+                <div class="callout">
+                    <p class="callout-title">補足</p>
+                    <p>知っておくと役に立つが、先に進むのに必須ではない内容です。</p>
+                </div>
+
+                <h2 id="safety">安全について</h2>
+                <div class="callout callout--caution">
+                    <p class="callout-title">安全</p>
+                    <ul>
+                        <li>ESCとモータをつないで作業するときは、必ずプロペラを外します。プログラムの書き込み直後や電源投入時に、意図せずモータが回ることがあります。</li>
+                        <li>飛行させるときは、操縦者と補助者はゴーグル（眼鏡でも可）を着けます。大会では義務で、練習でも着用が推奨されています。</li>
+                        <li>受信機のフェイルセーフ（電波が切れたらスロットルを切る設定）は、飛行前に毎回確かめます。</li>
+                        <li>LiPoバッテリーは、過放電・過充電・物理的な損傷で発火することがあります。充電中はそばを離れないでください。</li>
+                    </ul>
+                </div>
+            </article>
+
+            <nav id="pager" class="pager" aria-label="前後の章"></nav>
+        </main>
+
+        <aside class="page-toc">
+            <nav id="page-toc" aria-label="このページの見出し"></nav>
+        </aside>
+    </div>
+
+    <script type="module" src="../assets/js/main.js"></script>
+</body>
+</html>

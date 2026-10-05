@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- 章番号と題名を書き換える -->
+    <title>第N章 題名 | マイコンで作る固定翼機の自動操縦</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<!-- data-page は src/chapters.ts の id と一致させる -->
+<body data-page="NN" data-root="../">
+    <a class="skip-link" href="#main">本文へ移動</a>
+
+    <header class="site-header">
+        <button id="nav-toggle" class="nav-toggle" type="button" aria-controls="route-nav" aria-expanded="false">目次</button>
+        <a class="site-title" href="../index.html">マイコンで作る固定翼機の自動操縦</a>
+    </header>
+
+    <div class="layout">
+        <nav id="route-nav" class="route-nav" aria-label="講座の章"></nav>
+
+        <main id="main">
+            <article>
+                <p class="chapter-number">第N章</p>
+                <h1>題名</h1>
+                <p class="lead">この章で何をするのかを2〜3文で。</p>
+
+                <h2 id="goals">この章の目的</h2>
+                <ul>
+                    <li>〜を説明できる</li>
+                    <li>〜を実装できる</li>
+                </ul>
+
+                <h2 id="theory">理論</h2>
+                <p>本文。数式はMathMLで書く。</p>
+                <math display="block">
+                    <mrow><mi>y</mi><mo>=</mo><mi>a</mi><mi>x</mi><mo>+</mo><mi>b</mi></mrow>
+                </math>
+
+                <h2 id="implementation">実装</h2>
+                <figure class="code">
+                    <figcaption>include/Example.h</figcaption>
+<pre><code class="language-cpp">#pragma once
+
+#include &lt;Arduino.h&gt;  // &lt; と &gt; と &amp; は必ずエスケープする
+
+class Example
+{
+public:
+    void update();
+};
+</code></pre>
+                </figure>
+
+                <!-- 囲みは4種類：callout--caution（安全）/ callout--rule（大会ルール）/ callout--cpp（C++講座との対応）/ 無印（補足） -->
+                <div class="callout callout--caution">
+                    <p class="callout-title">安全</p>
+                    <p>注意の内容。</p>
+                </div>
+
+                <h2 id="verify">実機で確かめる</h2>
+                <ol>
+                    <li>手順</li>
+                </ol>
+
+                <h2 id="exercises">演習</h2>
+                <ol>
+                    <li>問題</li>
+                </ol>
+                <details class="answer">
+                    <summary>演習1の答え</summary>
+                    <p>答え。</p>
+                </details>
+            </article>
+
+            <nav id="pager" class="pager" aria-label="前後の章"></nav>
+        </main>
+
+        <aside class="page-toc">
+            <nav id="page-toc" aria-label="このページの見出し"></nav>
+        </aside>
+    </div>
+
+    <script type="module" src="../assets/js/main.js"></script>
+</body>
+</html>
