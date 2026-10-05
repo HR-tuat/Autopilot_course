@@ -16,12 +16,18 @@ ESP32とC++で固定翼機のフライトコントローラを自作し、全日
 │   ├── rules.html                 大会ルールと要求仕様（ルール改訂時はここを更新）
 │   ├── chapters/                  各章のページ
 │   │   └── _template.html         新しい章のひな形
-│   └── assets/css/style.css
+│   └── assets/css/                スタイル（../Cpp_course と同じ4分割）
+│       ├── base.css               リセット・配色変数・タイポグラフィ
+│       ├── layout.css             ヘッダ・サイドバー・本文幅・目次カラム
+│       ├── components.css         表・囲み・図・カード・数式
+│       └── code.css               コードブロックとシンタックスハイライト
 ├── package.json
 └── tsconfig.json
 ```
 
 依存ライブラリは使っていません。開発時に必要なのは TypeScript コンパイラ（`tsc`）だけです。
+
+デザインは姉妹サイトの[マイコンのためのC++講座](https://hr-tuat.github.io/Cpp_course/)（`../Cpp_course`）と揃えてあります。配色変数・クラス名・CSS の分け方まで同じにしてあるので、見た目を直すときは**両方のリポジトリに同じ変更を入れてください**。向こうの書き方の手引きは `../Cpp_course/docs/html-guide.md` にあります。
 
 ## 手元で確認する
 
@@ -44,7 +50,7 @@ ES モジュールを使っているため、HTML をファイルとして直接
 ## 章を追加する
 
 1. `site/chapters/_template.html` をコピーして、`site/chapters/NN-name.html` を作る
-2. `<body data-page="NN">` の値を決める
+2. `<body data-page="NN" data-base="../">` の `data-page` を決める（`data-base` はサイトルートへの相対パス。`site/` 直下なら `./`）
 3. `src/chapters.ts` の該当する章の `status` を `"planned"` から `"draft"`（または `"ready"`）に変え、`href` とファイル名を一致させる
 
 `status` が `"planned"` の章は、目次に灰色で表示されるだけでリンクされません。
@@ -56,7 +62,7 @@ ES モジュールを使っているため、HTML をファイルとして直接
 - コード例の `<`、`>`、`&` は HTML の中では `&lt;`、`&gt;`、`&amp;` と書く（ハイライタが元に戻して表示する）。
 - コードは `<figure class="code">` の中に、`<figcaption>` でファイルのパスを付けて置く。
 - 数式は MathML で書く。主要なブラウザはライブラリなしで表示できる。
-- 囲みは4種類だけ使う：`callout--caution`（安全）、`callout--rule`（大会ルール）、`callout--cpp`（C++講座との対応・講座で扱わなかった書き方）、無印（補足）。
+- 囲みは4種類だけ使う：`callout-caution`（安全）、`callout-rule`（大会ルール）、`callout-cpp`（C++講座との対応・講座で扱わなかった書き方）、無印（補足）。
 - 大会ルールに依存する記述は、できるだけ `rules.html` に集め、各章からはそこを参照する。
 
 ## 決定事項
@@ -71,6 +77,7 @@ ES モジュールを使っているため、HTML をファイルとして直接
 | 期間 | 定めず、章立てのみ |
 | マイコン環境 | ESP32、PlatformIO、Arduino フレームワーク |
 | サイト | HTML + CSS + TypeScript、依存ライブラリなし、数式は MathML |
+| デザイン | `../Cpp_course` と共通（配色変数・クラス名・CSS の分割まで揃える） |
 
 ## 未確定事項
 

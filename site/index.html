@@ -5,31 +5,70 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>マイコンで作る固定翼機の自動操縦</title>
     <meta name="description" content="ESP32とC++で固定翼機のフライトコントローラを自作し、室内飛行ロボコン統合部門の自動系サブミッションに挑むための講座。">
-    <link rel="stylesheet" href="assets/css/style.css">
+    <script>
+        // 保存済みのテーマを描画前に適用する（切り替え時のちらつき防止）
+        try {
+            var t = localStorage.getItem('autopilot-course:theme');
+            if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+        } catch (e) {
+            /* 読めなければ OS の設定に従う */
+        }
+    </script>
+    <link rel="stylesheet" href="./assets/css/base.css">
+    <link rel="stylesheet" href="./assets/css/layout.css">
+    <link rel="stylesheet" href="./assets/css/components.css">
+    <link rel="stylesheet" href="./assets/css/code.css">
 </head>
-<body class="page-index" data-page="index" data-root="">
+<body data-page="index" data-base="./">
     <a class="skip-link" href="#main">本文へ移動</a>
 
     <header class="site-header">
-        <a class="site-title" href="index.html">マイコンで作る固定翼機の自動操縦</a>
+        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+            <span class="nav-toggle-bar"></span><span class="sr-only">目次</span>
+        </button>
+        <a class="site-title" href="./index.html">マイコンで作る固定翼機の自動操縦</a>
+        <button class="theme-toggle" type="button" title="配色を切り替える">テーマ</button>
     </header>
 
     <div class="layout">
-        <main id="main">
-            <section class="hero">
-                <h1>マイコンで作る<br>固定翼機の自動操縦</h1>
-                <p>ESP32とC++でフライトコントローラを自作し、全日本学生室内飛行ロボットコンテスト統合部門の自動系サブミッション（自動水平旋回・自動8の字飛行・自動上昇旋回）を達成するための講座です。</p>
-                <p>「マイコンのためのC++講座」の続編として、クラス設計・ファイル分割・<code>enum class</code>による状態管理を使えることを前提にしています。数学は大学初年次の線形代数と微積分を使います。</p>
-                <p><a href="chapters/00-overview.html">第0章 講座の全体像から読む</a></p>
-            </section>
+        <aside id="sidebar" class="sidebar" data-nav aria-label="講座の章"></aside>
 
-            <nav id="index-route" class="index-route" aria-label="講座の章"></nav>
-            <noscript><p>章の一覧の表示にはJavaScriptが必要です。</p></noscript>
+        <main id="main" class="content">
+            <article class="prose">
+                <header class="page-head">
+                    <h1>マイコンで作る固定翼機の自動操縦</h1>
+                    <p class="lead">ESP32とC++でフライトコントローラを自作し、全日本学生室内飛行ロボットコンテスト統合部門の自動系サブミッション（自動水平旋回・自動8の字飛行・自動上昇旋回）を達成するための講座。</p>
+                </header>
+
+                <h2 id="前提">前提</h2>
+
+                <p>この講座は<a href="https://hr-tuat.github.io/Cpp_course/">マイコンのためのC++講座</a>の続編にあたります。クラス設計、<code>.h</code>と<code>.cpp</code>への分割、カプセル化、継承と<code>virtual</code>、<code>enum class</code>による状態管理を使えることを前提にしています。</p>
+
+                <p>数学は大学初年次の線形代数と微積分を使います。回転行列、行列の積、微分方程式の数値解法が出てきますが、必要な範囲はその都度説明します。</p>
+
+                <h2 id="読む順序">読む順序</h2>
+
+                <p>章は前から順に読む前提で並んでいます。まずは<a href="chapters/00-overview.html">第0章 講座の全体像</a>で、完成したときのシステムの形と各章の役割を把握してください。ルールに依存する要求は<a href="rules.html">大会ルールと要求仕様</a>にまとめてあり、大会ルールの改訂時はそのページだけを直せば済むようにしています。</p>
+
+                <p>「草稿」は公開しているが内容が未確定の章、「準備中」はまだ書いていない章です。</p>
+
+                <!-- ここから下の章一覧は src/chapters.ts から生成される -->
+                <div data-cards></div>
+                <noscript><p>章の一覧の表示にはJavaScriptが必要です。<a href="chapters/00-overview.html">第0章</a>から読み進めてください。</p></noscript>
+            </article>
+
+            <nav class="pager" data-pager aria-label="前後の章"></nav>
         </main>
+
+        <aside class="toc-column">
+            <nav class="toc" data-toc aria-label="ページ内目次"></nav>
+        </aside>
     </div>
 
-    <footer class="site-footer">マイコンで作る固定翼機の自動操縦</footer>
+    <footer class="site-footer">
+        <p>マイコンで作る固定翼機の自動操縦 — 「マイコンのためのC++講座」の続編</p>
+    </footer>
 
-    <script type="module" src="assets/js/main.js"></script>
+    <script type="module" src="./assets/js/main.js"></script>
 </body>
 </html>

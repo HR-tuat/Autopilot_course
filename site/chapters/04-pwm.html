@@ -4,24 +4,41 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>第4章 PWM出力：サーボとESC | マイコンで作る固定翼機の自動操縦</title>
-    <link rel="stylesheet" href="../assets/css/style.css">
+    <script>
+        // 保存済みのテーマを描画前に適用する（切り替え時のちらつき防止）
+        try {
+            var t = localStorage.getItem('autopilot-course:theme');
+            if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+        } catch (e) {
+            /* 読めなければ OS の設定に従う */
+        }
+    </script>
+    <link rel="stylesheet" href="../assets/css/base.css">
+    <link rel="stylesheet" href="../assets/css/layout.css">
+    <link rel="stylesheet" href="../assets/css/components.css">
+    <link rel="stylesheet" href="../assets/css/code.css">
 </head>
-<body data-page="04" data-root="../">
+<body data-page="04" data-base="../">
     <a class="skip-link" href="#main">本文へ移動</a>
 
     <header class="site-header">
-        <button id="nav-toggle" class="nav-toggle" type="button" aria-controls="route-nav" aria-expanded="false">目次</button>
+        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+            <span class="nav-toggle-bar"></span><span class="sr-only">目次</span>
+        </button>
         <a class="site-title" href="../index.html">マイコンで作る固定翼機の自動操縦</a>
+        <button class="theme-toggle" type="button" title="配色を切り替える">テーマ</button>
     </header>
 
     <div class="layout">
-        <nav id="route-nav" class="route-nav" aria-label="講座の章"></nav>
+        <aside id="sidebar" class="sidebar" data-nav aria-label="講座の章"></aside>
 
-        <main id="main">
-            <article>
-                <p class="chapter-number">第4章</p>
-                <h1>PWM出力：サーボとESC</h1>
-                <p class="lead">フライトコントローラが計算した結果は、最後にサーボとESCへの信号になって初めて機体を動かします。この章では、その信号の形を理解し、ESP32で正確に出力するクラスを作ります。</p>
+        <main id="main" class="content">
+            <article class="prose">
+                <header class="page-head">
+                    <p class="eyebrow">第4章</p>
+                    <h1>PWM出力：サーボとESC</h1>
+                    <p class="lead">フライトコントローラが計算した結果は、最後にサーボとESCへの信号になって初めて機体を動かします。この章では、その信号の形を理解し、ESP32で正確に出力するクラスを作ります。</p>
+                </header>
 
                 <h2 id="goals">この章の目的</h2>
                 <ul>
@@ -174,7 +191,7 @@
                 </ul>
                 <p>制御のコード（第11章以降のPID）は−1〜+1や0〜1の値だけを扱い、µsもLEDCも知らなくて済みます。サーボを交換したり、マイコンを変えたりしても、直すのはこれらのクラスの中だけです。</p>
 
-                <div class="callout callout--cpp">
+                <div class="callout callout-cpp">
                     <p class="callout-title">C++講座との対応</p>
                     <p>C++講座第14回の「1クラス1責務」と、第8回のカプセル化をそのまま使っています。中立や両端の値を<code>private</code>にし、外からは<code>setCommand()</code>を通してしか出力を変えられないようにすることで、範囲外の値が出ることを防いでいます。</p>
                 </div>
@@ -256,7 +273,7 @@ void PwmChannel::writePulseUs(float pulseUs)
 
                 <p><code>+ 0.5f</code>してから整数に変換しているのは、切り捨てではなく四捨五入にするためです。</p>
 
-                <div class="callout callout--cpp">
+                <div class="callout callout-cpp">
                     <p class="callout-title">C++講座では扱わなかった書き方</p>
                     <ul>
                         <li><code>static_cast&lt;uint32_t&gt;(値)</code>は、値を<code>uint32_t</code>型に変換することを明示する書き方です。<code>(uint32_t)値</code>というCの書き方より意図がはっきりし、危険な変換をコンパイラが見つけやすくなります。</li>
@@ -510,12 +527,12 @@ void loop()
                 <p>多くのESCは、電源を入れた直後に最小スロットルの信号をしばらく受け取らないと、モータを回せる状態（アーム状態）になりません。電源を入れたときにスロットルが上がっていて、いきなりプロペラが回るのを防ぐための仕組みです。<code>EscOutput::begin()</code>で最初に最小値を出しているのはこのためです。</p>
                 <p>また、ESCは「どのパルス幅を停止、どのパルス幅を最大とするか」を覚えさせる校正が必要なことがあります。手順はESCによって違いますが、最大の信号を出したまま電源を入れ、合図の音が鳴ったら最小の信号に下げる、という形が多いです。必ず自分のESCの説明書に従ってください。</p>
 
-                <div class="callout callout--caution">
+                <div class="callout callout-caution">
                     <p class="callout-title">安全</p>
                     <p>ESCの校正や、ESCにつないだ状態でのプログラムの書き込み・動作確認は、必ずプロペラを外して行います。校正では意図的に最大スロットルの信号を出すので、手順を間違えるとモータが全開で回ります。</p>
                 </div>
 
-                <div class="callout callout--rule">
+                <div class="callout callout-rule">
                     <p class="callout-title">大会ルール：フェイルセーフとの関係</p>
                     <p>ルールでは、電波が切れたら<em>受信機側で</em>スロットルを切ることが求められています。受信機のスロットル出力をESCに直接つなぐなら、受信機のフェイルセーフ設定だけで済みます。しかし、フライトコントローラがESCを駆動する構成では、受信機が「スロットル最小」を出しても、フライトコントローラがそれを読んで<code>EscOutput</code>に反映しなければモータは止まりません。受信機のフェイルセーフを確実にESCまで届ける方法は、第5章と第14章で扱います。</p>
                 </div>
@@ -544,13 +561,17 @@ void loop()
                 </details>
             </article>
 
-            <nav id="pager" class="pager" aria-label="前後の章"></nav>
+            <nav class="pager" data-pager aria-label="前後の章"></nav>
         </main>
 
-        <aside class="page-toc">
-            <nav id="page-toc" aria-label="このページの見出し"></nav>
+        <aside class="toc-column">
+            <nav class="toc" data-toc aria-label="ページ内目次"></nav>
         </aside>
     </div>
+
+    <footer class="site-footer">
+        <p>マイコンで作る固定翼機の自動操縦 — 「マイコンのためのC++講座」の続編</p>
+    </footer>
 
     <script type="module" src="../assets/js/main.js"></script>
 </body>

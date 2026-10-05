@@ -4,24 +4,41 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>第0章 講座の全体像 | マイコンで作る固定翼機の自動操縦</title>
-    <link rel="stylesheet" href="../assets/css/style.css">
+    <script>
+        // 保存済みのテーマを描画前に適用する（切り替え時のちらつき防止）
+        try {
+            var t = localStorage.getItem('autopilot-course:theme');
+            if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+        } catch (e) {
+            /* 読めなければ OS の設定に従う */
+        }
+    </script>
+    <link rel="stylesheet" href="../assets/css/base.css">
+    <link rel="stylesheet" href="../assets/css/layout.css">
+    <link rel="stylesheet" href="../assets/css/components.css">
+    <link rel="stylesheet" href="../assets/css/code.css">
 </head>
-<body data-page="00" data-root="../">
+<body data-page="00" data-base="../">
     <a class="skip-link" href="#main">本文へ移動</a>
 
     <header class="site-header">
-        <button id="nav-toggle" class="nav-toggle" type="button" aria-controls="route-nav" aria-expanded="false">目次</button>
+        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+            <span class="nav-toggle-bar"></span><span class="sr-only">目次</span>
+        </button>
         <a class="site-title" href="../index.html">マイコンで作る固定翼機の自動操縦</a>
+        <button class="theme-toggle" type="button" title="配色を切り替える">テーマ</button>
     </header>
 
     <div class="layout">
-        <nav id="route-nav" class="route-nav" aria-label="講座の章"></nav>
+        <aside id="sidebar" class="sidebar" data-nav aria-label="講座の章"></aside>
 
-        <main id="main">
-            <article>
-                <p class="chapter-number">第0章</p>
-                <h1>講座の全体像</h1>
-                <p class="lead">この講座では、C++講座で作ったLEDクラスやSensorクラスの考え方をそのまま使い、固定翼機を自動で旋回させるフライトコントローラを自作します。この章では、完成したときのシステムの形と、各章がその中のどこを作るのかを先に見ておきます。</p>
+        <main id="main" class="content">
+            <article class="prose">
+                <header class="page-head">
+                    <p class="eyebrow">第0章</p>
+                    <h1>講座の全体像</h1>
+                    <p class="lead">この講座では、C++講座で作ったLEDクラスやSensorクラスの考え方をそのまま使い、固定翼機を自動で旋回させるフライトコントローラを自作します。この章では、完成したときのシステムの形と、各章がその中のどこを作るのかを先に見ておきます。</p>
+                </header>
 
                 <h2 id="goal">この講座のゴール</h2>
                 <p>最終的な目標は、全日本学生室内飛行ロボットコンテスト統合部門の自動系サブミッション（自動水平旋回・自動8の字飛行・自動上昇旋回）を、自作のフライトコントローラで達成することです。そのために、次のことができるようになるのを目指します。</p>
@@ -143,7 +160,7 @@
                 <p>統合部門では、離陸・物資の投下・着陸は操縦者が行い、自動系サブミッションの間だけ機体が自律飛行（ハンズオフ飛行）をします。つまり、このフライトコントローラは「手動で飛んでいる最中に自動を開始し、終わったら、あるいは危なくなったら、すぐに手動へ戻す」ことが前提になります。</p>
                 <p>この切り替えは見た目以上に難しい部分です。自動を開始した瞬間に舵がはね上がらないこと、操縦者がスティックに触れたら即座に手動へ戻ること、電波が切れたら確実にモータを止めることを、第5章と第14章で扱います。</p>
 
-                <div class="callout callout--cpp">
+                <div class="callout callout-cpp">
                     <p class="callout-title">C++講座との対応</p>
                     <p>「手動」「自動旋回中」「上昇中」といった飛行の状態は、C++講座第9回の<code>enum class</code>と<code>switch</code>でそのまま書けます。モード管理は、講座の最終課題の<code>RobotState</code>を発展させたものだと考えてください。</p>
                 </div>
@@ -167,15 +184,15 @@
                 <h2 id="chapter-structure">各章の進め方</h2>
                 <p>各章は、目的 → 理論 → 実装 → 実機での確認 → 演習、の順で進みます。本文中の囲みは次の意味で使い分けています。</p>
 
-                <div class="callout callout--caution">
+                <div class="callout callout-caution">
                     <p class="callout-title">安全</p>
                     <p>けがや機材の破損につながる注意です。読み飛ばさないでください。</p>
                 </div>
-                <div class="callout callout--rule">
+                <div class="callout callout-rule">
                     <p class="callout-title">大会ルール</p>
                     <p>大会ルールとの関係です。ルールが改訂されたら見直す必要があります。</p>
                 </div>
-                <div class="callout callout--cpp">
+                <div class="callout callout-cpp">
                     <p class="callout-title">C++講座との対応</p>
                     <p>C++講座のどの内容を使っているか、または講座では扱わなかった新しい書き方です。</p>
                 </div>
@@ -185,7 +202,7 @@
                 </div>
 
                 <h2 id="safety">安全について</h2>
-                <div class="callout callout--caution">
+                <div class="callout callout-caution">
                     <p class="callout-title">安全</p>
                     <ul>
                         <li>ESCとモータをつないで作業するときは、必ずプロペラを外します。プログラムの書き込み直後や電源投入時に、意図せずモータが回ることがあります。</li>
@@ -196,13 +213,17 @@
                 </div>
             </article>
 
-            <nav id="pager" class="pager" aria-label="前後の章"></nav>
+            <nav class="pager" data-pager aria-label="前後の章"></nav>
         </main>
 
-        <aside class="page-toc">
-            <nav id="page-toc" aria-label="このページの見出し"></nav>
+        <aside class="toc-column">
+            <nav class="toc" data-toc aria-label="ページ内目次"></nav>
         </aside>
     </div>
+
+    <footer class="site-footer">
+        <p>マイコンで作る固定翼機の自動操縦 — 「マイコンのためのC++講座」の続編</p>
+    </footer>
 
     <script type="module" src="../assets/js/main.js"></script>
 </body>

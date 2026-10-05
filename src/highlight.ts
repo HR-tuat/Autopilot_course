@@ -1,5 +1,7 @@
 // 依存ライブラリなしの簡易C++ハイライタ。
 // <pre><code class="language-cpp"> の中身を字句に分けて <span class="tok-*"> で包む。
+// クラス名は ../Cpp_course と同じ（tok-keyword / tok-type / tok-string / tok-comment /
+// tok-number / tok-preproc / tok-func）。配色は site/assets/css/code.css にある。
 // 完全な構文解析ではなく、講座のコード例が読みやすくなる程度を目標にしている。
 
 const KEYWORDS = new Set([
@@ -17,7 +19,7 @@ const TYPES = new Set([
     "size_t",
 ]);
 
-type TokenClass = "kw" | "type" | "str" | "com" | "num" | "pre" | "fn" | "const" | null;
+type TokenClass = "keyword" | "type" | "string" | "comment" | "number" | "preproc" | "func" | null;
 
 interface Token {
     text: string;
@@ -42,19 +44,20 @@ function isLineStart(src: string, index: number): boolean {
 
 function classifyIdent(word: string, src: string, end: number): TokenClass {
     if (KEYWORDS.has(word)) {
-        return "kw";
+        return "keyword";
     }
     if (TYPES.has(word)) {
         return "type";
     }
+    // 全部大文字の名前はマクロとみなし、前処理指令と同じ色にする
     if (/^[A-Z][A-Z0-9_]+$/.test(word)) {
-        return "const";
+        return "preproc";
     }
     if (/^[A-Z][a-z]/.test(word)) {
         return "type";
     }
     const after = src.slice(end).match(/^\s*\(/);
-    return after ? "fn" : null;
+    return after ? "func" : null;
 }
 
 export function tokenizeCpp(src: string): Token[] {
@@ -77,14 +80,14 @@ export function tokenizeCpp(src: string): Token[] {
         if (src.startsWith("//", i)) {
             const nl = src.indexOf("\n", i);
             const end = nl === -1 ? src.length : nl;
-            push(src.slice(i, end), "com");
+            push(src.slice(i, end), "comment");
             i = end;
             continue;
         }
         if (src.startsWith("/*", i)) {
             const close = src.indexOf("*/", i + 2);
             const end = close === -1 ? src.length : close + 2;
-            push(src.slice(i, end), "com");
+            push(src.slice(i, end), "comment");
             i = end;
             continue;
         }
@@ -97,7 +100,7 @@ export function tokenizeCpp(src: string): Token[] {
             if (comment !== -1 && comment < end) {
                 end = comment;
             }
-            push(src.slice(i, end), "pre");
+            push(src.slice(i, end), "preproc");
             i = end;
             continue;
         }
@@ -109,7 +112,7 @@ export function tokenizeCpp(src: string): Token[] {
                 j += src[j] === "\\" ? 2 : 1;
             }
             const end = Math.min(j + 1, src.length);
-            push(src.slice(i, end), "str");
+            push(src.slice(i, end), "string");
             i = end;
             continue;
         }
@@ -119,7 +122,7 @@ export function tokenizeCpp(src: string): Token[] {
             NUMBER.lastIndex = i;
             const m = NUMBER.exec(src);
             if (m !== null && m[0].length > 0) {
-                push(m[0], "num");
+                push(m[0], "number");
                 i += m[0].length;
                 continue;
             }

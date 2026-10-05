@@ -17,12 +17,15 @@ export interface Chapter {
 }
 
 export interface Part {
+    /** トップページの見出しに付けるid（ページ内目次のリンク先になる） */
+    id: string;
     title: string;
     chapters: Chapter[];
 }
 
 export const parts: Part[] = [
     {
+        id: "intro",
         title: "導入",
         chapters: [
             {
@@ -68,6 +71,7 @@ export const parts: Part[] = [
         ],
     },
     {
+        id: "io",
         title: "入出力と通信",
         chapters: [
             {
@@ -97,6 +101,7 @@ export const parts: Part[] = [
         ],
     },
     {
+        id: "sensing",
         title: "センサと状態推定",
         chapters: [
             {
@@ -134,6 +139,7 @@ export const parts: Part[] = [
         ],
     },
     {
+        id: "control",
         title: "制御",
         chapters: [
             {
@@ -155,6 +161,7 @@ export const parts: Part[] = [
         ],
     },
     {
+        id: "autoflight",
         title: "自動飛行",
         chapters: [
             {
@@ -184,6 +191,7 @@ export const parts: Part[] = [
         ],
     },
     {
+        id: "advanced",
         title: "発展",
         chapters: [
             {
@@ -224,4 +232,16 @@ export const parts: Part[] = [
 
 export function allChapters(): Chapter[] {
     return parts.flatMap((part) => part.chapters);
+}
+
+/**
+ * サイドバーとカードの左に出す短いラベル。
+ * ../Cpp_course の `label`（「第3回」）にあたるもので、そちらと見た目を揃えている。
+ * 数字の章は「第N章」、付録は番号そのまま（A1）、番号のないページは「—」。
+ */
+export function chapterLabel(chapter: Chapter): string {
+    if (chapter.number === "") {
+        return "—";
+    }
+    return /^\d+$/.test(chapter.number) ? `第${chapter.number}章` : chapter.number;
 }

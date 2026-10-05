@@ -1,0 +1,194 @@
+/* ==========================================================================
+   code.css — コードブロックの見た目とシンタックスハイライト
+
+   ../Cpp_course/site/styles/code.css と同じ。トークンのクラス名
+   （tok-keyword / tok-type / …）も向こうと揃えてあるので、配色を直すときは
+   両方に同じ変更を入れる。
+   ========================================================================== */
+
+code {
+  font-family: var(--font-mono);
+  font-size: .86em;
+  font-feature-settings: "liga" 0;
+}
+
+/* 本文中のインラインコード */
+
+p > code,
+li > code,
+td > code,
+th > code,
+h2 > code,
+h3 > code,
+h4 > code,
+.check code {
+  padding: .1em .35em;
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* --- コードブロック ------------------------------------------------------- */
+
+figure.code {
+  position: relative;
+  margin: 1.2rem 0 1.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-code);
+  overflow: hidden;
+}
+
+figure.code figcaption {
+  padding: .4rem .9rem;
+  font-family: var(--font-mono);
+  font-size: .76rem;
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border);
+}
+
+figure.code pre {
+  margin: 0;
+  padding: .9rem 1rem;
+  overflow-x: auto;
+  line-height: 1.7;
+  tab-size: 4;
+}
+
+figure.code code {
+  display: block;
+  font-size: .845rem;
+  color: var(--text);
+  white-space: pre;
+}
+
+/* --- コピーボタン --------------------------------------------------------- */
+
+.copy-btn {
+  position: absolute;
+  top: .5rem;
+  right: .5rem;
+  padding: .2rem .6rem;
+  font-size: .72rem;
+  color: var(--text-muted);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .12s ease;
+}
+
+figure.code:hover .copy-btn,
+.copy-btn:focus-visible {
+  opacity: 1;
+}
+
+.copy-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.copy-btn.is-done {
+  opacity: 1;
+  color: var(--tip);
+  border-color: var(--tip);
+}
+
+figure.code:has(figcaption) .copy-btn {
+  top: 2.3rem;
+}
+
+/* --- トークン（ライト） --------------------------------------------------- */
+
+.tok-comment {
+  color: #6b7b8a;
+  font-style: italic;
+}
+
+.tok-string {
+  color: #98561b;
+}
+
+.tok-number {
+  color: #1f6f8b;
+}
+
+.tok-keyword {
+  color: #9226a0;
+  font-weight: 600;
+}
+
+.tok-type {
+  color: #1a6b55;
+}
+
+.tok-preproc {
+  color: #a35b00;
+}
+
+.tok-func {
+  color: #1f5fd0;
+}
+
+/* --- トークン（ダーク） --------------------------------------------------- */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tok-comment {
+    color: #7b8794;
+  }
+
+  :root:not([data-theme="light"]) .tok-string {
+    color: #e0a06a;
+  }
+
+  :root:not([data-theme="light"]) .tok-number {
+    color: #7fd0d8;
+  }
+
+  :root:not([data-theme="light"]) .tok-keyword {
+    color: #d69bf0;
+  }
+
+  :root:not([data-theme="light"]) .tok-type {
+    color: #79d3ab;
+  }
+
+  :root:not([data-theme="light"]) .tok-preproc {
+    color: #e5b567;
+  }
+
+  :root:not([data-theme="light"]) .tok-func {
+    color: #86b4f7;
+  }
+}
+
+:root[data-theme="dark"] .tok-comment {
+  color: #7b8794;
+}
+
+:root[data-theme="dark"] .tok-string {
+  color: #e0a06a;
+}
+
+:root[data-theme="dark"] .tok-number {
+  color: #7fd0d8;
+}
+
+:root[data-theme="dark"] .tok-keyword {
+  color: #d69bf0;
+}
+
+:root[data-theme="dark"] .tok-type {
+  color: #79d3ab;
+}
+
+:root[data-theme="dark"] .tok-preproc {
+  color: #e5b567;
+}
+
+:root[data-theme="dark"] .tok-func {
+  color: #86b4f7;
+}

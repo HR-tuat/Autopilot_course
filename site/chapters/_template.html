@@ -3,27 +3,45 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- 章番号と題名を書き換える -->
+    <!-- 章番号と題名、説明を書き換える -->
     <title>第N章 題名 | マイコンで作る固定翼機の自動操縦</title>
-    <link rel="stylesheet" href="../assets/css/style.css">
+    <meta name="description" content="この章の内容を1〜2文で。">
+    <script>
+        // 保存済みのテーマを描画前に適用する（切り替え時のちらつき防止）
+        try {
+            var t = localStorage.getItem('autopilot-course:theme');
+            if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+        } catch (e) {
+            /* 読めなければ OS の設定に従う */
+        }
+    </script>
+    <link rel="stylesheet" href="../assets/css/base.css">
+    <link rel="stylesheet" href="../assets/css/layout.css">
+    <link rel="stylesheet" href="../assets/css/components.css">
+    <link rel="stylesheet" href="../assets/css/code.css">
 </head>
 <!-- data-page は src/chapters.ts の id と一致させる -->
-<body data-page="NN" data-root="../">
+<body data-page="NN" data-base="../">
     <a class="skip-link" href="#main">本文へ移動</a>
 
     <header class="site-header">
-        <button id="nav-toggle" class="nav-toggle" type="button" aria-controls="route-nav" aria-expanded="false">目次</button>
+        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+            <span class="nav-toggle-bar"></span><span class="sr-only">目次</span>
+        </button>
         <a class="site-title" href="../index.html">マイコンで作る固定翼機の自動操縦</a>
+        <button class="theme-toggle" type="button" title="配色を切り替える">テーマ</button>
     </header>
 
     <div class="layout">
-        <nav id="route-nav" class="route-nav" aria-label="講座の章"></nav>
+        <aside id="sidebar" class="sidebar" data-nav aria-label="講座の章"></aside>
 
-        <main id="main">
-            <article>
-                <p class="chapter-number">第N章</p>
-                <h1>題名</h1>
-                <p class="lead">この章で何をするのかを2〜3文で。</p>
+        <main id="main" class="content">
+            <article class="prose">
+                <header class="page-head">
+                    <p class="eyebrow">第N章</p>
+                    <h1>題名</h1>
+                    <p class="lead">この章で何をするのかを2〜3文で。</p>
+                </header>
 
                 <h2 id="goals">この章の目的</h2>
                 <ul>
@@ -52,8 +70,8 @@ public:
 </code></pre>
                 </figure>
 
-                <!-- 囲みは4種類：callout--caution（安全）/ callout--rule（大会ルール）/ callout--cpp（C++講座との対応）/ 無印（補足） -->
-                <div class="callout callout--caution">
+                <!-- 囲みは4種類：callout-caution（安全）/ callout-rule（大会ルール）/ callout-cpp（C++講座との対応）/ 無印（補足） -->
+                <div class="callout callout-caution">
                     <p class="callout-title">安全</p>
                     <p>注意の内容。</p>
                 </div>
@@ -73,13 +91,17 @@ public:
                 </details>
             </article>
 
-            <nav id="pager" class="pager" aria-label="前後の章"></nav>
+            <nav class="pager" data-pager aria-label="前後の章"></nav>
         </main>
 
-        <aside class="page-toc">
-            <nav id="page-toc" aria-label="このページの見出し"></nav>
+        <aside class="toc-column">
+            <nav class="toc" data-toc aria-label="ページ内目次"></nav>
         </aside>
     </div>
+
+    <footer class="site-footer">
+        <p>マイコンで作る固定翼機の自動操縦 — 「マイコンのためのC++講座」の続編</p>
+    </footer>
 
     <script type="module" src="../assets/js/main.js"></script>
 </body>

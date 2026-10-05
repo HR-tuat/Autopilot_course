@@ -1,0 +1,346 @@
+/* ==========================================================================
+   components.css — 表・囲み・図・カード・数式・演習の答え
+
+   前半（表・概念図・囲み・カード）は ../Cpp_course/site/styles/components.css
+   と同じ。向こうにしかない部品（到達度チェック、解答例リンク、受講者 / 講師の
+   出し分け）は省き、代わりにこの講座だけで使う数式・SVG図・大会ルールの囲みを
+   同じ作法で足している。
+   ========================================================================== */
+
+/* --- 表 ------------------------------------------------------------------- */
+
+.table-wrap {
+  margin: 1.2rem 0 1.6rem;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .88rem;
+  line-height: 1.6;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-subtle);
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+}
+
+th,
+td {
+  padding: .55rem .85rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+tbody tr:last-child th,
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+tbody tr:hover {
+  background: var(--bg-subtle);
+}
+
+/* 数字の列。.num は .align-right の別名（この講座の既存ページが使っている） */
+.align-right,
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.align-center {
+  text-align: center;
+}
+
+/* --- 図 ------------------------------------------------------------------- */
+
+figure.diagram {
+  margin: 1.3rem 0 1.6rem;
+  padding: 1rem 1.1rem;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow-x: auto;
+}
+
+/* 罫線や矢印で描いた図。コードではないのでハイライトしない */
+figure.diagram pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: .84rem;
+  line-height: 1.7;
+  color: var(--text-muted);
+  white-space: pre;
+}
+
+figure.diagram figcaption {
+  margin-bottom: .5rem;
+  font-size: .76rem;
+  color: var(--text-faint);
+}
+
+/* 図の下に説明を置く場合（SVGの図はこちら） */
+figure.diagram figcaption:last-child {
+  margin-top: .6rem;
+  margin-bottom: 0;
+}
+
+/* --- SVGの図（この講座だけ） ---------------------------------------------- */
+
+.diagram-scroll {
+  overflow-x: auto;
+}
+
+figure.diagram svg {
+  display: block;
+  width: 100%;
+  min-width: 600px;
+  height: auto;
+}
+
+.svg-text {
+  font-family: var(--font-sans);
+  fill: var(--text);
+}
+
+.svg-sub {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  fill: var(--text-muted);
+}
+
+.svg-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.svg-box {
+  fill: var(--bg-raised);
+  stroke: var(--border-strong);
+  stroke-width: 1.5;
+}
+
+.svg-box--io { stroke: var(--text-faint); }
+.svg-box--ctrl { stroke: var(--accent); }
+.svg-box--est { stroke: var(--tip); }
+.svg-box--plant { stroke: var(--text-muted); stroke-dasharray: 4 3; }
+
+.svg-wire {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+}
+
+.svg-wire--manual {
+  stroke-dasharray: 5 4;
+}
+
+.svg-arrowhead {
+  fill: var(--text-muted);
+}
+
+.svg-signal {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+
+.svg-axis {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+
+/* --- 数式（この講座だけ） ------------------------------------------------- */
+
+math {
+  font-family: var(--font-math);
+}
+
+math[display="block"] {
+  display: block;
+  margin: 1.25rem 0;
+  font-size: 1.15em;
+  overflow-x: auto;
+}
+
+/* --- 注意書き ------------------------------------------------------------- */
+
+.callout {
+  margin: 1.3rem 0 1.6rem;
+  padding: .85rem 1.1rem;
+  border-left: 3px solid var(--note);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--note-soft);
+  font-size: .92rem;
+}
+
+/* 囲みの末尾にコード例を置いても下だけ余白が残らないようにする */
+.callout > :last-child {
+  margin-bottom: 0;
+}
+
+.callout figure.code {
+  margin-top: .7rem;
+}
+
+.callout-title {
+  margin: 0 0 .25rem;
+  font-size: .76rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  color: var(--note);
+}
+
+/* 安全。ハマりどころ、壊れる操作、怪我につながる操作 */
+.callout-caution {
+  border-left-color: var(--warn);
+  background: var(--warn-soft);
+}
+
+.callout-caution .callout-title {
+  color: var(--warn);
+}
+
+/* C++講座との対応。向こうで学んだどの道具を使っているかを示す */
+.callout-cpp {
+  border-left-color: var(--tip);
+  background: var(--tip-soft);
+}
+
+.callout-cpp .callout-title {
+  color: var(--tip);
+}
+
+/* 大会ルールに由来する記述。ルール改訂で見直す箇所が一目で分かるようにする */
+.callout-rule {
+  border-left-color: var(--rule);
+  background: var(--rule-soft);
+}
+
+.callout-rule .callout-title {
+  color: var(--rule);
+}
+
+/* --- カード --------------------------------------------------------------- */
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: .75rem;
+  margin: 1.3rem 0 1.8rem;
+}
+
+.card {
+  display: block;
+  padding: .9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--text);
+}
+
+a.card:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+  transition: transform .12s ease;
+}
+
+/* 準備中の章。リンクではないので、枠と文字を落として区別する */
+.card.is-pending {
+  border-style: dashed;
+  background: var(--bg-subtle);
+  color: var(--text-faint);
+}
+
+.card-eyebrow {
+  display: block;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .09em;
+  color: var(--accent);
+}
+
+.card.is-pending .card-eyebrow,
+.card.is-pending .card-desc {
+  color: var(--text-faint);
+}
+
+.card-title {
+  display: block;
+  font-size: .95rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.card-desc {
+  display: block;
+  margin-top: .2rem;
+  font-size: .8rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+/* --- 状態のラベル --------------------------------------------------------- */
+
+.badge {
+  display: inline-block;
+  margin-left: .4rem;
+  padding: .05rem .55rem;
+  border-radius: 999px;
+  font-size: .74rem;
+  font-weight: 700;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.badge-draft {
+  color: var(--warn);
+  background: var(--warn-soft);
+  border: 1px solid var(--warn);
+}
+
+.badge-pending {
+  color: var(--text-faint);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-strong);
+}
+
+/* --- 演習の答え ----------------------------------------------------------- */
+
+details.answer {
+  margin: 1.3rem 0 1.6rem;
+  padding: .8rem 1.1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow);
+  font-size: .92rem;
+}
+
+details.answer summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+details.answer summary:hover {
+  color: var(--accent);
+}
+
+details.answer[open] summary {
+  margin-bottom: .6rem;
+  padding-bottom: .5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+details.answer > :last-child {
+  margin-bottom: 0;
+}

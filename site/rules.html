@@ -4,26 +4,43 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>大会ルールと要求仕様 | マイコンで作る固定翼機の自動操縦</title>
-    <link rel="stylesheet" href="assets/css/style.css">
+    <script>
+        // 保存済みのテーマを描画前に適用する（切り替え時のちらつき防止）
+        try {
+            var t = localStorage.getItem('autopilot-course:theme');
+            if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+        } catch (e) {
+            /* 読めなければ OS の設定に従う */
+        }
+    </script>
+    <link rel="stylesheet" href="./assets/css/base.css">
+    <link rel="stylesheet" href="./assets/css/layout.css">
+    <link rel="stylesheet" href="./assets/css/components.css">
+    <link rel="stylesheet" href="./assets/css/code.css">
 </head>
-<body data-page="rules" data-root="">
+<body data-page="rules" data-base="./">
     <a class="skip-link" href="#main">本文へ移動</a>
 
     <header class="site-header">
-        <button id="nav-toggle" class="nav-toggle" type="button" aria-controls="route-nav" aria-expanded="false">目次</button>
-        <a class="site-title" href="index.html">マイコンで作る固定翼機の自動操縦</a>
+        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+            <span class="nav-toggle-bar"></span><span class="sr-only">目次</span>
+        </button>
+        <a class="site-title" href="./index.html">マイコンで作る固定翼機の自動操縦</a>
+        <button class="theme-toggle" type="button" title="配色を切り替える">テーマ</button>
     </header>
 
     <div class="layout">
-        <nav id="route-nav" class="route-nav" aria-label="講座の章"></nav>
+        <aside id="sidebar" class="sidebar" data-nav aria-label="講座の章"></aside>
 
-        <main id="main">
-            <article>
-                <p class="chapter-number">導入</p>
-                <h1>大会ルールと要求仕様</h1>
-                <p class="lead">統合部門のルールのうち、フライトコントローラの設計に関わる部分を整理し、そこから「何を作らなければならないか」を導きます。講座の各章は、ここで挙げた要求のどれかに答える形になっています。</p>
+        <main id="main" class="content">
+            <article class="prose">
+                <header class="page-head">
+                    <p class="eyebrow">導入</p>
+                    <h1>大会ルールと要求仕様</h1>
+                    <p class="lead">統合部門のルールのうち、フライトコントローラの設計に関わる部分を整理し、そこから「何を作らなければならないか」を導きます。講座の各章は、ここで挙げた要求のどれかに答える形になっています。</p>
+                </header>
 
-                <div class="callout callout--rule">
+                <div class="callout callout-rule">
                     <p class="callout-title">このページの基準</p>
                     <p>第22回大会（2026年）の統合部門ルールブック Version 1.1（2026年5月18日発行）をもとにしています。ルールは毎年改訂されるので、新しい大会に出るときは必ず<a href="https://indoor-flight.com/">大会公式サイト</a>の最新のルールブックと、質問への回答集を確認し、このページを更新してください。以下はルールブックの要約であり、正確な文言は原文を参照してください。</p>
                 </div>
@@ -133,20 +150,24 @@
                 <h3 id="altitude">高度の目標に余裕を持たせる</h3>
                 <p>上昇旋回では「機体の一部でも」範囲を外れると失敗になるため、3mちょうどを目標にしてはいけません。推定高度の誤差、旋回中の高度の揺れ、機体の上下の寸法を合わせた分だけ、3mから離れた高度を目標にします。どれだけ離すべきかは、第10章で推定誤差を、第15章で実際の飛行ログを見て決めます。</p>
 
-                <div class="callout callout--caution">
+                <div class="callout callout-caution">
                     <p class="callout-title">安全：屋外での練習</p>
                     <p>100g以上の機体を屋外で飛ばす場合は、原則として航空法の対象になり、機体登録や、空域・飛び方に応じた手続きが必要です。また、ドローンやラジコン機に対応した対人・対物の保険に加入してください。</p>
                 </div>
             </article>
 
-            <nav id="pager" class="pager" aria-label="前後の章"></nav>
+            <nav class="pager" data-pager aria-label="前後の章"></nav>
         </main>
 
-        <aside class="page-toc">
-            <nav id="page-toc" aria-label="このページの見出し"></nav>
+        <aside class="toc-column">
+            <nav class="toc" data-toc aria-label="ページ内目次"></nav>
         </aside>
     </div>
 
-    <script type="module" src="assets/js/main.js"></script>
+    <footer class="site-footer">
+        <p>マイコンで作る固定翼機の自動操縦 — 「マイコンのためのC++講座」の続編</p>
+    </footer>
+
+    <script type="module" src="./assets/js/main.js"></script>
 </body>
 </html>

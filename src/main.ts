@@ -1,16 +1,27 @@
-import { allChapters, parts, type Chapter } from "./chapters.js";
-import { highlightAll } from "./highlight.js";
-
+// 各ページ共通の初期化。すべてのHTMLがこのファイルだけを読み込む。
+//
+// 構成・クラス名・配色は「マイコンのためのC++講座」(../Cpp_course) と揃えてある。
+// 向こうの site/scripts/ に対応するもので、サイドバー・前へ/次へ・ページ内目次を
+// chapters.ts から生成し、テーマの切り替えとコードのハイライトを担当する。
+//
 // 各ページの <body> に次の2つを書く。
 //   data-page : chapters.ts の id
-//   data-root : サイトのルートへの相対パス（トップ階層なら ""、chapters/ 内なら "../"）
-const root = document.body.dataset.root ?? "";
+//   data-base : サイトのルートへの相対パス（トップ階層なら "./"、chapters/ 内なら "../"）
+
+import { allChapters, chapterLabel, parts, type Chapter } from "./chapters.js";
+import { highlightAll } from "./highlight.js";
+
+const THEME_KEY = "autopilot-course:theme";
+
+type Theme = "light" | "dark";
+
+const base = document.body.dataset.base ?? "./";
 const currentId = document.body.dataset.page ?? "";
 
-const STATUS_LABEL: Record<Chapter["status"], string> = {
-    ready: "",
-    draft: "草稿",
-    planned: "準備中",
+/** 公開状態のうち、ラベルを出すものだけ。ready は何も出さない */
+const STATUS_BADGE: Partial<Record<Chapter["status"], { text: string; cls: string }>> = {
+    draft: { text: "草稿", cls: "badge badge-draft" },
+    planned: { text: "準備中", cls: "badge badge-pending" },
 };
 
 function el<K extends keyof HTMLElementTagNameMap>(
@@ -19,7 +30,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
     text?: string,
 ): HTMLElementTagNameMap[K] {
     const node = document.createElement(tag);
-    if (className) {
+    if (className !== undefined) {
         node.className = className;
     }
     if (text !== undefined) {
@@ -28,118 +39,99 @@ function el<K extends keyof HTMLElementTagNameMap>(
     return node;
 }
 
-/** 経路（章の並び）を1つの <ol> として作る。withSummary が true ならトップページ用の詳細表示。 */
-function buildRoute(chapters: Chapter[], withSummary: boolean): HTMLOListElement {
-    const list = el("ol", withSummary ? "route route--large" : "route");
+/* ---------- テーマ ---------- */
 
-    for (const chapter of chapters) {
-        const item = el("li", `waypoint is-${chapter.status}`);
-        const isCurrent = chapter.id === currentId;
-        if (isCurrent) {
-            item.classList.add("is-current");
-        }
-
-        const body = chapter.status === "planned" ? el("span", "waypoint-body") : el("a", "waypoint-body");
-        if (body instanceof HTMLAnchorElement) {
-            body.href = root + chapter.href;
-            if (isCurrent) {
-                body.setAttribute("aria-current", "page");
-            }
-        }
-
-        body.append(el("span", "waypoint-number", chapter.number));
-
-        const text = el("span", "waypoint-text");
-        text.append(el("span", "waypoint-title", chapter.title));
-        if (withSummary) {
-            text.append(el("span", "waypoint-summary", chapter.summary));
-        }
-        const label = STATUS_LABEL[chapter.status];
-        if (label !== "") {
-            text.append(el("span", "waypoint-status", label));
-        }
-        body.append(text);
-
-        item.append(body);
-        list.append(item);
-    }
-
-    return list;
-}
-
-function buildRouteNav(container: HTMLElement, withSummary: boolean): void {
-    for (const part of parts) {
-        const heading = el(withSummary ? "h2" : "p", "route-part", part.title);
-        container.append(heading, buildRoute(part.chapters, withSummary));
+function storedTheme(): Theme | null {
+    try {
+        const value = window.localStorage.getItem(THEME_KEY);
+        return value === "light" || value === "dark" ? value : null;
+    } catch {
+        return null;
     }
 }
 
-function buildPager(container: HTMLElement): void {
-    const available = allChapters().filter((c) => c.status !== "planned");
-    const index = available.findIndex((c) => c.id === currentId);
-    if (index === -1) {
-        return;
+function applyTheme(theme: Theme | null): void {
+    if (theme !== null) {
+        document.documentElement.dataset.theme = theme;
+    } else {
+        delete document.documentElement.dataset.theme;
     }
-
-    const makeLink = (chapter: Chapter, direction: "prev" | "next"): HTMLAnchorElement => {
-        const link = el("a", `pager-link pager-link--${direction}`);
-        link.href = root + chapter.href;
-        link.append(el("span", "pager-label", direction === "prev" ? "前へ" : "次へ"));
-        const prefix = chapter.number !== "" ? `${chapter.number}. ` : "";
-        link.append(el("span", "pager-title", prefix + chapter.title));
-        return link;
-    };
-
-    const prev = available[index - 1];
-    const next = available[index + 1];
-    container.append(prev ? makeLink(prev, "prev") : el("span"));
-    container.append(next ? makeLink(next, "next") : el("span"));
 }
 
-function buildPageToc(container: HTMLElement, article: HTMLElement): void {
-    const headings = Array.from(article.querySelectorAll<HTMLElement>("h2, h3"));
-    if (headings.length < 2) {
-        container.closest("aside")?.setAttribute("hidden", "");
-        return;
-    }
+function setupTheme(): void {
+    applyTheme(storedTheme());
 
-    container.append(el("p", "page-toc-title", "このページ"));
-    const list = el("ol", "page-toc-list");
+    const button = document.querySelector<HTMLButtonElement>(".theme-toggle");
+    button?.addEventListener("click", () => {
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const current = storedTheme() ?? (prefersDark ? "dark" : "light");
+        const next: Theme = current === "dark" ? "light" : "dark";
 
-    headings.forEach((heading, i) => {
-        if (heading.id === "") {
-            heading.id = `sec-${i + 1}`;
+        applyTheme(next);
+        try {
+            window.localStorage.setItem(THEME_KEY, next);
+        } catch {
+            // 保存できなくても表示は切り替える
         }
-        const item = el("li", heading.tagName === "H3" ? "toc-sub" : "toc-main");
-        const link = el("a", undefined, heading.textContent ?? "");
-        link.href = `#${heading.id}`;
-        item.append(link);
-        list.append(item);
     });
-
-    container.append(list);
 }
 
-function setupNavToggle(): void {
-    const button = document.getElementById("nav-toggle");
-    const nav = document.getElementById("route-nav");
-    if (button === null || nav === null) {
+/* ---------- サイドバー ---------- */
+
+function renderNav(host: HTMLElement): void {
+    for (const part of parts) {
+        const group = el("div", "nav-group");
+        group.append(el("p", "nav-group-title", part.title));
+
+        const list = el("ul", "nav-list");
+        for (const chapter of part.chapters) {
+            // 準備中の章はリンクにしない。色だけで「まだ読めない」ことを示す
+            const body = chapter.status === "planned"
+                ? el("span", "nav-pending")
+                : el("a", undefined);
+            if (body instanceof HTMLAnchorElement) {
+                body.href = base + chapter.href;
+                if (chapter.id === currentId) {
+                    body.setAttribute("aria-current", "page");
+                }
+            }
+            body.append(el("span", "nav-num", chapterLabel(chapter)));
+            body.append(el("span", undefined, chapter.title));
+
+            const item = el("li");
+            item.append(body);
+            list.append(item);
+        }
+
+        group.append(list);
+        host.append(group);
+    }
+
+    setupNavToggle(host);
+}
+
+function setupNavToggle(sidebar: HTMLElement): void {
+    const button = document.querySelector<HTMLButtonElement>(".nav-toggle");
+    if (button === null) {
         return;
     }
 
     const setOpen = (open: boolean): void => {
-        document.body.classList.toggle("nav-open", open);
+        sidebar.classList.toggle("is-open", open);
         button.setAttribute("aria-expanded", String(open));
     };
 
     button.addEventListener("click", () => {
-        setOpen(!document.body.classList.contains("nav-open"));
+        setOpen(!sidebar.classList.contains("is-open"));
     });
-    nav.addEventListener("click", (event) => {
+
+    // 狭い画面でリンクを踏んだら閉じる
+    sidebar.addEventListener("click", (event) => {
         if ((event.target as HTMLElement).closest("a") !== null) {
             setOpen(false);
         }
     });
+
     document.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {
             setOpen(false);
@@ -147,55 +139,216 @@ function setupNavToggle(): void {
     });
 }
 
-function setupCodeCopy(): void {
-    document.querySelectorAll<HTMLElement>("figure.code").forEach((figure) => {
-        const code = figure.querySelector("code");
-        const caption = figure.querySelector("figcaption");
-        if (code === null || caption === null || !navigator.clipboard) {
-            return;
-        }
-        const button = el("button", "copy-button", "コピー");
-        button.type = "button";
-        button.addEventListener("click", async () => {
-            try {
-                await navigator.clipboard.writeText(code.textContent ?? "");
-                button.textContent = "コピーしました";
-            } catch {
-                button.textContent = "コピーできませんでした";
+/* ---------- トップページの章一覧 ---------- */
+
+function renderCards(host: HTMLElement): void {
+    for (const part of parts) {
+        const heading = el("h2", undefined, part.title);
+        heading.id = part.id;
+
+        const grid = el("div", "card-grid");
+        for (const chapter of part.chapters) {
+            const card = chapter.status === "planned"
+                ? el("span", "card is-pending")
+                : el("a", "card");
+            if (card instanceof HTMLAnchorElement) {
+                card.href = base + chapter.href;
             }
-            window.setTimeout(() => {
-                button.textContent = "コピー";
-            }, 2000);
-        });
-        caption.append(button);
+
+            const eyebrow = el("span", "card-eyebrow", chapterLabel(chapter));
+            const badge = STATUS_BADGE[chapter.status];
+            if (badge !== undefined) {
+                eyebrow.append(el("span", badge.cls, badge.text));
+            }
+
+            card.append(eyebrow);
+            card.append(el("span", "card-title", chapter.title));
+            card.append(el("span", "card-desc", chapter.summary));
+            grid.append(card);
+        }
+
+        host.append(heading, grid);
+    }
+}
+
+/* ---------- 前へ / 次へ ---------- */
+
+function renderPager(host: HTMLElement): void {
+    // 準備中の章を挟まないよう、経路そのものを絞ってから前後を取る
+    const order = allChapters().filter((chapter) => chapter.status !== "planned");
+    const index = order.findIndex((chapter) => chapter.id === currentId);
+    if (index === -1) {
+        return;
+    }
+
+    const makeLink = (chapter: Chapter, direction: "prev" | "next"): HTMLAnchorElement => {
+        const link = el("a", `pager-${direction}`);
+        link.href = base + chapter.href;
+        link.rel = direction;
+        const label = direction === "prev"
+            ? `← 前へ / ${chapterLabel(chapter)}`
+            : `次へ / ${chapterLabel(chapter)} →`;
+        link.append(el("span", "pager-label", label));
+        link.append(el("span", "pager-title", chapter.title));
+        return link;
+    };
+
+    const prev = order[index - 1];
+    const next = order[index + 1];
+    if (prev !== undefined) {
+        host.append(makeLink(prev, "prev"));
+    }
+    if (next !== undefined) {
+        host.append(makeLink(next, "next"));
+    }
+}
+
+/* ---------- ページ内目次 ---------- */
+
+interface Heading {
+    id: string;
+    text: string;
+    level: 2 | 3;
+}
+
+function collectHeadings(): Heading[] {
+    const nodes = Array.from(document.querySelectorAll<HTMLHeadingElement>(".prose h2, .prose h3"));
+
+    return nodes.map((node, i) => {
+        if (node.id === "") {
+            node.id = `sec-${i + 1}`;
+        }
+        return {
+            id: node.id,
+            text: node.textContent ?? "",
+            level: node.tagName === "H3" ? 3 : 2,
+        };
     });
 }
 
-function main(): void {
-    const routeNav = document.getElementById("route-nav");
-    if (routeNav !== null) {
-        buildRouteNav(routeNav, false);
+function renderToc(host: HTMLElement): void {
+    const headings = collectHeadings();
+    if (headings.length < 2) {
+        return;
     }
 
-    const indexRoute = document.getElementById("index-route");
-    if (indexRoute !== null) {
-        buildRouteNav(indexRoute, true);
-    }
+    host.append(el("p", "toc-title", "このページの内容"));
 
-    const pager = document.getElementById("pager");
-    if (pager !== null) {
-        buildPager(pager);
+    const list = el("ul");
+    for (const heading of headings) {
+        const item = el("li", heading.level === 3 ? "toc-h3" : undefined);
+        const link = el("a", undefined, heading.text);
+        link.href = `#${heading.id}`;
+        item.append(link);
+        list.append(item);
     }
+    host.append(list);
 
-    const toc = document.getElementById("page-toc");
-    const article = document.querySelector<HTMLElement>("article");
-    if (toc !== null && article !== null) {
-        buildPageToc(toc, article);
-    }
-
-    highlightAll();
-    setupCodeCopy();
-    setupNavToggle();
+    observeHeadings(host, headings);
 }
 
-main();
+/** スクロール位置に合わせて目次の現在地を光らせる */
+function observeHeadings(host: HTMLElement, headings: Heading[]): void {
+    const links = new Map<string, HTMLAnchorElement>();
+    host.querySelectorAll("a").forEach((link) => {
+        links.set(decodeURIComponent(link.getAttribute("href")?.slice(1) ?? ""), link);
+    });
+
+    const visible = new Set<string>();
+
+    const observer = new IntersectionObserver(
+        (entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    visible.add(entry.target.id);
+                } else {
+                    visible.delete(entry.target.id);
+                }
+            });
+
+            const first = headings.find((heading) => visible.has(heading.id));
+            if (first !== undefined) {
+                links.forEach((link, key) => link.classList.toggle("is-active", key === first.id));
+            }
+        },
+        { rootMargin: "-5rem 0px -70% 0px", threshold: 0 },
+    );
+
+    headings.forEach((heading) => {
+        const element = document.getElementById(heading.id);
+        if (element !== null) {
+            observer.observe(element);
+        }
+    });
+}
+
+/* ---------- コードブロック ---------- */
+
+function enhanceCodeBlocks(): void {
+    highlightAll();
+
+    if (!navigator.clipboard) {
+        return;
+    }
+
+    document.querySelectorAll<HTMLElement>("figure.code").forEach((figure) => {
+        const code = figure.querySelector("code");
+        if (code === null) {
+            return;
+        }
+
+        const button = el("button", "copy-btn", "コピー");
+        button.type = "button";
+        button.addEventListener("click", () => {
+            void navigator.clipboard.writeText(code.textContent ?? "").then(
+                () => {
+                    button.textContent = "コピーしました";
+                    button.classList.add("is-done");
+                    window.setTimeout(() => {
+                        button.textContent = "コピー";
+                        button.classList.remove("is-done");
+                    }, 1600);
+                },
+                () => {
+                    button.textContent = "コピーできません";
+                },
+            );
+        });
+
+        figure.append(button);
+    });
+}
+
+/* ---------- 初期化 ---------- */
+
+function init(): void {
+    setupTheme();
+
+    const nav = document.querySelector<HTMLElement>("[data-nav]");
+    if (nav !== null) {
+        renderNav(nav);
+    }
+
+    const cards = document.querySelector<HTMLElement>("[data-cards]");
+    if (cards !== null) {
+        renderCards(cards);
+    }
+
+    const pager = document.querySelector<HTMLElement>("[data-pager]");
+    if (pager !== null) {
+        renderPager(pager);
+    }
+
+    const toc = document.querySelector<HTMLElement>("[data-toc]");
+    if (toc !== null) {
+        renderToc(toc);
+    }
+
+    enhanceCodeBlocks();
+}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+} else {
+    init();
+}
