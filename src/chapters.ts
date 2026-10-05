@@ -190,44 +190,6 @@ export const parts: Part[] = [
             },
         ],
     },
-    {
-        id: "advanced",
-        title: "発展",
-        chapters: [
-            {
-                id: "a1",
-                number: "A1",
-                title: "屋内自己位置推定",
-                summary: "マーカーを使った位置推定と、投下・着陸への応用。",
-                href: "chapters/a1-indoor-localization.html",
-                status: "planned",
-            },
-            {
-                id: "a2",
-                number: "A2",
-                title: "自動離着陸・無動力滑空",
-                summary: "完全自動部門で必要になる離陸・着陸・滑空の自動化。",
-                href: "chapters/a2-takeoff-landing.html",
-                status: "planned",
-            },
-            {
-                id: "a3",
-                number: "A3",
-                title: "屋外航法とTECS",
-                summary: "GPS、ウェイポイント、L1誘導、全エネルギー制御。",
-                href: "chapters/a3-outdoor-navigation.html",
-                status: "planned",
-            },
-            {
-                id: "a4",
-                number: "A4",
-                title: "シミュレーション",
-                summary: "SITL・HILSで実機を飛ばす前に試す。",
-                href: "chapters/a4-simulation.html",
-                status: "planned",
-            },
-        ],
-    },
 ];
 
 export function allChapters(): Chapter[] {
@@ -237,7 +199,8 @@ export function allChapters(): Chapter[] {
 /**
  * サイドバーとカードの左に出す短いラベル。
  * ../Cpp_course の `label`（「第3回」）にあたるもので、そちらと見た目を揃えている。
- * 数字の章は「第N章」、付録は番号そのまま（A1）、番号のないページは「—」。
+ * 数字の章は「第N章」、番号を持たないページは「—」。
+ * 数字以外の番号を付けた章は、その文字列をそのまま出す。
  */
 export function chapterLabel(chapter: Chapter): string {
     if (chapter.number === "") {
